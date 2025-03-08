@@ -126,14 +126,14 @@ export default function Home() {
                     <CardDescription>{tool.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6">
-                    <div className="relative aspect-video overflow-hidden rounded-lg">
+                    {/* <div className="relative aspect-video overflow-hidden rounded-lg">
                       <Image
                         src={`/placeholder.svg?height=180&width=320&text=${encodeURIComponent(tool.name)}`}
                         alt={tool.name}
                         fill
                         className="object-cover transition-transform hover:scale-105"
                       />
-                    </div>
+                    </div> */}
                     {tool.badge && (
                       <Badge className="absolute top-4 right-4" variant="secondary">
                         {tool.badge}
