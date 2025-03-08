@@ -91,12 +91,12 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-center">
                 <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[450px] lg:w-[450px]">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-muted rounded-lg" />
+                  <div className="absolute inset-0  " />
                   <Image
                     src="/hero.png"
                     alt="Hero Image"
                     fill
-                    className="object-contain mix-blend-overlay"
+                    className=""
                     priority
                   />
                 </div>
