@@ -5,11 +5,24 @@ import { FileUpload } from "@/components/file-upload"
 import { ToolResult } from "@/components/tool-result"
 import { RelatedTools } from "@/components/related-tools"
 import { Button } from "@/components/ui/button"
-import { Paintbrush, Info } from "lucide-react"
+import { Paintbrush, Info, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
+const LoadingAnimation = () => (
+  <div className="flex flex-col items-center justify-center p-8 space-y-4 border rounded-lg bg-muted/5">
+    <div className="relative w-16 h-16">
+      <div className="absolute top-0 left-0 w-full h-full border-4 border-muted-foreground/20 rounded-full"></div>
+      <div className="absolute top-0 left-0 w-full h-full border-4 border-t-primary rounded-full animate-spin"></div>
+    </div>
+    <div className="space-y-2 text-center">
+      <p className="font-medium">Removing Background</p>
+      <p className="text-sm text-muted-foreground">This may take a few seconds...</p>
+    </div>
+  </div>
+)
 
 export default function BackgroundRemoverPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -48,10 +61,7 @@ export default function BackgroundRemoverPage() {
       const reader = new FileReader()
       reader.readAsDataURL(file)
       
-      reader.onload = async () => {
-        const base64Image = reader.result as string
-        const base64Data = base64Image.split(',')[1]
-
+      const processImage = async (base64Data: string) => {
         const response = await fetch('https://api.remove.bg/v1.0/removebg', {
           method: 'POST',
           headers: {
@@ -68,7 +78,17 @@ export default function BackgroundRemoverPage() {
         })
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          if (response.status === 402) {
+            throw new Error("Your remove.bg API key has no credits remaining. Please check your account at remove.bg/dashboard")
+          } else if (response.status === 401) {
+            throw new Error("Invalid API key. Please check your remove.bg API key in the .env file")
+          } else {
+            const errorData = await response.json().catch(() => null)
+            throw new Error(
+              errorData?.errors?.[0]?.title || 
+              `API Error (${response.status}): Please check your remove.bg account`
+            )
+          }
         }
 
         const blob = await response.blob()
@@ -77,13 +97,19 @@ export default function BackgroundRemoverPage() {
         toast.success("Background removed successfully!")
       }
 
+      reader.onload = async () => {
+        const base64Image = reader.result as string
+        const base64Data = base64Image.split(',')[1]
+        await processImage(base64Data)
+        setIsProcessing(false)
+      }
+
       reader.onerror = () => {
         throw new Error('Failed to read the image file')
       }
     } catch (error) {
       console.error('Error:', error)
       toast.error(error instanceof Error ? error.message : "Failed to remove background")
-    } finally {
       setIsProcessing(false)
     }
   }
@@ -103,10 +129,13 @@ export default function BackgroundRemoverPage() {
 
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>Free to use</AlertTitle>
+        <AlertTitle>API Key Required</AlertTitle>
         <AlertDescription>
-          This tool is completely free to use with no login required. Your images are processed securely and are not
-          stored on our servers.
+          This tool uses the remove.bg API which requires credits. Get your API key from{" "}
+          <a href="https://www.remove.bg/api" target="_blank" rel="noopener noreferrer" className="underline">
+            remove.bg
+          </a>
+          {" "}and make sure you have available credits in your account.
         </AlertDescription>
       </Alert>
 
@@ -132,14 +161,23 @@ export default function BackgroundRemoverPage() {
               disabled={!file || isProcessing || !apiKey} 
               className="w-full"
             >
-              {isProcessing ? "Processing..." : "Remove Background"}
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Remove Background"
+              )}
             </Button>
           </div>
         </div>
 
         <div className="space-y-4">
           <h2 className="text-xl font-bold">Result</h2>
-          {result ? (
+          {isProcessing ? (
+            <LoadingAnimation />
+          ) : result ? (
             <ToolResult 
               title="Background Removed" 
               resultImage={result} 
@@ -156,6 +194,8 @@ export default function BackgroundRemoverPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-bold">How to use</h2>
         <ol className="list-decimal list-inside space-y-2 ml-4">
+          {/* <li>Get an API key from <a href="https://www.remove.bg/api" target="_blank" rel="noopener noreferrer" className="underline">remove.bg</a> and ensure you have credits</li>
+          <li>Add your API key to the .env file as NEXT_PUBLIC_REMOVE_BG_API_KEY</li> */}
           <li>Upload your image by dragging and dropping or clicking the upload area</li>
           <li>Click "Remove Background" to process your image</li>
           <li>Once processing is complete, you can download or share the transparent PNG</li>

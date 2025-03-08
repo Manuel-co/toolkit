@@ -19,6 +19,25 @@ import {
   Download,
 } from "lucide-react"
 
+interface Tool {
+  name: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  slug: string
+  badge?: string
+}
+
+interface Feature {
+  name: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+interface FAQ {
+  question: string
+  answer: string
+}
+
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
@@ -68,20 +87,16 @@ export default function Home() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href="#tools">
-                    <Button size="lg" variant="outline">
-                      View All Tools
-                    </Button>
-                  </Link>
                 </div>
               </div>
               <div className="flex items-center justify-center">
                 <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[450px] lg:w-[450px]">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-muted rounded-lg" />
                   <Image
-                    src="/placeholder.svg?height=450&width=450"
+                    src="/hero.png"
                     alt="Hero Image"
                     fill
-                    className="object-contain dark:invert"
+                    className="object-contain mix-blend-overlay"
                     priority
                   />
                 </div>
@@ -247,20 +262,20 @@ export default function Home() {
   )
 }
 
-const tools = [
-  {
-    name: "Background Remover",
-    description: "Remove backgrounds from images with a single click",
-    icon: Paintbrush,
-    badge: "Popular",
-    slug: "background-remover",
-  },
-  {
-    name: "Image to Favicon",
-    description: "Convert any image to a favicon for your website",
-    icon: FileImage,
-    slug: "image-to-favicon",
-  },
+const tools: Tool[] = [
+  // {
+  //   name: "Background Remover",
+  //   description: "Remove backgrounds from images with a single click",
+  //   icon: Paintbrush,
+  //   badge: "Popular",
+  //   slug: "background-remover",
+  // },
+  // {
+  //   name: "Image to Favicon",
+  //   description: "Convert any image to a favicon for your website",
+  //   icon: FileImage,
+  //   slug: "image-to-favicon",
+  // },
   {
     name: "Image Cropper",
     description: "Crop and resize images to your desired dimensions",
@@ -273,19 +288,19 @@ const tools = [
     icon: Palette,
     slug: "color-extractor",
   },
-  {
-    name: "Image Compressor",
-    description: "Compress images without losing quality",
-    icon: ImageIcon,
-    badge: "New",
-    slug: "image-compressor",
-  },
-  {
-    name: "Text Extractor",
-    description: "Extract text from images using OCR technology",
-    icon: FileText,
-    slug: "text-extractor",
-  },
+  // {
+  //   name: "Image Compressor",
+  //   description: "Compress images without losing quality",
+  //   icon: ImageIcon,
+  //   badge: "New",
+  //   slug: "image-compressor",
+  // },
+  // {
+  //   name: "Text Extractor",
+  //   description: "Extract text from images using OCR technology",
+  //   icon: FileText,
+  //   slug: "text-extractor",
+  // },
   {
     name: "QR Code Generator",
     description: "Generate QR codes for URLs, text, and more",
@@ -300,7 +315,7 @@ const tools = [
   },
 ]
 
-const features = [
+const features: Feature[] = [
   {
     name: "Fast Processing",
     description: "All tools are optimized for speed and efficiency",
@@ -318,12 +333,12 @@ const features = [
   },
 ]
 
-const faqs = [
-  {
-    question: "How does the background remover work?",
-    answer:
-      "Our background remover uses advanced AI to detect and remove backgrounds from images automatically. Simply upload your image and our tool will do the rest.",
-  },
+const faqs: FAQ[] = [
+  // {
+  //   question: "How does the background remover work?",
+  //   answer:
+  //     "Our background remover uses advanced AI to detect and remove backgrounds from images automatically. Simply upload your image and our tool will do the rest.",
+  // },
   {
     question: "Can I use these tools for commercial projects?",
     answer:
@@ -334,10 +349,10 @@ const faqs = [
     answer:
       "All tools are free to use with no processing limits.",
   },
-  {
-    question: "Are my files stored on your servers?",
-    answer:
-      "We do not permanently store your files. They are processed in real-time and then deleted from our servers.",
-  },
+  // {
+  //   question: "Are my files stored on your servers?",
+  //   answer:
+  //     "We do not permanently store your files. They are processed in real-time and then deleted from our servers.",
+  // },
 ]
 

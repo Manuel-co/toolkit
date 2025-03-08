@@ -16,6 +16,7 @@ import {
   Hash,
   Key,
   Lightbulb,
+  FileIcon,
 } from "lucide-react"
 
 export default function ToolsPage() {
@@ -72,13 +73,6 @@ const tools = [
     icon: Paintbrush,
     badge: "Popular",
     slug: "background-remover",
-  },
-  {
-    name: "Image to Favicon",
-    description: "Convert any image to a favicon for your website",
-    details: "Creates favicons in multiple sizes for all devices and browsers.",
-    icon: FileImage,
-    slug: "image-to-favicon",
   },
   {
     name: "Image Cropper",
@@ -147,11 +141,11 @@ const tools = [
     slug: "project-idea-generator",
   },
   {
-    name: "Color Palette Generator",
-    description: "Create harmonious color palettes for your designs",
-    details: "Generate complementary, analogous, and monochromatic color schemes.",
-    icon: Palette,
-    slug: "color-palette-generator",
+    name: "Text to PDF",
+    description: "Convert text to PDF",
+    details: "Convert text to PDF with a single click.",
+    icon: FileIcon,
+    slug: "text-to-pdf",
   },
 ]
 
