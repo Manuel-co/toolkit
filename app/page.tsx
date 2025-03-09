@@ -131,7 +131,7 @@ export default function Home() {
                         src={`/placeholder.svg?height=180&width=320&text=${encodeURIComponent(tool.name)}`}
                         alt={tool.name}
                         fill
-                        className="object-cover transition-transform hover:scale-105"
+                        className="object-cover  transition-transform hover:scale-105"
                       />
                     </div> */}
                     {tool.badge && (
