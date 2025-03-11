@@ -1,30 +1,35 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/providers/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { PageTransition } from "@/components/page-transition"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "ToolKit - Online Tools for Creative Professionals",
-  description:
-    "A suite of powerful online tools for creative professionals. Remove backgrounds, convert images to favicons, and more.",
-  icons: {
-    icon: '/placeholder-logo.svg',
-  },
+  title: "ToolKit - Free Online Tools",
+  description: "A collection of free online tools for creative professionals.",
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <PageTransition>
+            {children}
+          </PageTransition>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

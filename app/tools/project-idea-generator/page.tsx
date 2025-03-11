@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { RelatedTools } from "@/components/related-tools"
 import { Button } from "@/components/ui/button"
 import { Lightbulb, Info, Copy, Check, RefreshCw, Bookmark } from "lucide-react"
@@ -21,6 +21,19 @@ export default function ProjectIdeaGeneratorPage() {
   const [savedIdeas, setSavedIdeas] = useState<ProjectIdea[]>([])
   const [copied, setCopied] = useState(false)
 
+  // Load saved ideas from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('savedProjectIdeas')
+    if (saved) {
+      setSavedIdeas(JSON.parse(saved))
+    }
+  }, [])
+
+  // Save to localStorage whenever savedIdeas changes
+  useEffect(() => {
+    localStorage.setItem('savedProjectIdeas', JSON.stringify(savedIdeas))
+  }, [savedIdeas])
+
   // Handle technology selection
   const handleTechnologyChange = (technology: string, checked: boolean) => {
     if (checked) {
@@ -34,46 +47,43 @@ export default function ProjectIdeaGeneratorPage() {
   const generateIdea = () => {
     setIsGenerating(true)
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Filter ideas based on skill level
-      const skillLevelIdeas = projectIdeas.filter((idea) => idea.skillLevel === skillLevel)
+    // Filter ideas based on skill level
+    const skillLevelIdeas = allProjectIdeas.filter((idea: Omit<ProjectIdea, "id">) => idea.skillLevel === skillLevel)
 
-      // Filter by project type
-      const projectTypeIdeas = skillLevelIdeas.filter((idea) => idea.projectType === projectType)
+    // Filter by project type
+    const projectTypeIdeas = skillLevelIdeas.filter((idea: Omit<ProjectIdea, "id">) => idea.projectType === projectType)
 
-      // Find ideas that use at least one of the selected technologies
-      const techFilteredIdeas = projectTypeIdeas.filter((idea) =>
-        technologies.some((tech) => idea.technologies.includes(tech)),
-      )
+    // Find ideas that use at least one of the selected technologies
+    const techFilteredIdeas = projectTypeIdeas.filter((idea: Omit<ProjectIdea, "id">) =>
+      technologies.some((tech) => idea.technologies.includes(tech)),
+    )
 
-      // If no ideas match all criteria, fall back to skill level only
-      const eligibleIdeas = techFilteredIdeas.length > 0 ? techFilteredIdeas : skillLevelIdeas
+    // If no ideas match all criteria, fall back to skill level only
+    const eligibleIdeas = techFilteredIdeas.length > 0 ? techFilteredIdeas : skillLevelIdeas
 
-      // Select a random idea from the filtered list
-      const randomIdea = eligibleIdeas[Math.floor(Math.random() * eligibleIdeas.length)]
+    // Select a random idea from the filtered list
+    const randomIdea = eligibleIdeas[Math.floor(Math.random() * eligibleIdeas.length)]
 
-      // Add some randomness to the features
-      const randomFeatures = [...randomIdea.features]
-      if (randomFeatures.length > 4) {
-        // Randomly remove 1-2 features to create variation
-        const removeCount = Math.floor(Math.random() * 2) + 1
-        for (let i = 0; i < removeCount; i++) {
-          const indexToRemove = Math.floor(Math.random() * randomFeatures.length)
-          randomFeatures.splice(indexToRemove, 1)
-        }
+    // Add some randomness to the features
+    const randomFeatures = [...randomIdea.features]
+    if (randomFeatures.length > 4) {
+      // Randomly remove 1-2 features to create variation
+      const removeCount = Math.floor(Math.random() * 2) + 1
+      for (let i = 0; i < removeCount; i++) {
+        const indexToRemove = Math.floor(Math.random() * randomFeatures.length)
+        randomFeatures.splice(indexToRemove, 1)
       }
+    }
 
-      // Create a copy of the idea with potentially modified features
-      const generatedIdea = {
-        ...randomIdea,
-        features: randomFeatures,
-        id: Date.now().toString(), // Add a unique ID for saving
-      }
+    // Create a copy of the idea with potentially modified features
+    const generatedIdea = {
+      ...randomIdea,
+      features: randomFeatures,
+      id: Date.now().toString(), // Add a unique ID for saving
+    }
 
-      setGeneratedIdea(generatedIdea)
-      setIsGenerating(false)
-    }, 1500)
+    setGeneratedIdea(generatedIdea)
+    setIsGenerating(false)
   }
 
   // Save the current idea
@@ -848,6 +858,457 @@ const projectIdeas: Omit<ProjectIdea, "id">[] = [
       "CSS animations and transitions",
       "Audio management in web applications",
     ],
-  },
+  }
 ]
+
+// Add more project ideas
+const additionalProjectIdeas: Omit<ProjectIdea, "id">[] = [
+  {
+    title: "AI Image Generator",
+    description: "Create a web application that generates images using AI models like Stable Diffusion.",
+    skillLevel: "advanced",
+    projectType: "application",
+    technologies: ["react", "nextjs", "api", "typescript"],
+    features: [
+      "Text-to-image generation",
+      "Image customization options",
+      "Gallery of generated images",
+      "Share and download functionality",
+      "User collections and favorites",
+      "Advanced prompt builder"
+    ],
+    learningOutcomes: [
+      "AI API integration",
+      "Image processing and manipulation",
+      "Advanced state management",
+      "Real-time updates and progress",
+      "Performance optimization for large files"
+    ]
+  },
+  {
+    title: "Code Snippet Manager",
+    description: "Build a tool for developers to store, organize, and share code snippets.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Syntax highlighting for multiple languages",
+      "Tags and categories for organization",
+      "Search and filter functionality",
+      "Copy to clipboard with one click",
+      "Public/private snippets",
+      "Import/export functionality"
+    ],
+    learningOutcomes: [
+      "Code syntax highlighting libraries",
+      "Search and filtering algorithms",
+      "Data organization patterns",
+      "User authentication and authorization",
+      "Database schema design"
+    ]
+  },
+  {
+    title: "Virtual Music Studio",
+    description: "Create an online music creation tool with virtual instruments and recording capabilities.",
+    skillLevel: "advanced",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "Virtual piano and drum pad",
+      "Audio recording and playback",
+      "Multiple instrument tracks",
+      "Effects and filters",
+      "Project save and load",
+      "Export to various formats"
+    ],
+    learningOutcomes: [
+      "Web Audio API",
+      "Real-time audio processing",
+      "Complex UI interactions",
+      "File format handling",
+      "Performance optimization"
+    ]
+  },
+  {
+    title: "Smart Home Dashboard",
+    description: "Develop a dashboard to control and monitor smart home devices.",
+    skillLevel: "advanced",
+    projectType: "dashboard",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "Device status monitoring",
+      "Temperature and lighting control",
+      "Energy usage analytics",
+      "Automation rules editor",
+      "Security camera feeds",
+      "Voice commands integration"
+    ],
+    learningOutcomes: [
+      "IoT API integration",
+      "Real-time data handling",
+      "WebSocket communication",
+      "Complex state management",
+      "Security best practices"
+    ]
+  },
+  {
+    title: "Language Learning Game",
+    description: "Create an interactive game for learning new languages through fun exercises.",
+    skillLevel: "intermediate",
+    projectType: "game",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Vocabulary flashcards",
+      "Speaking and listening exercises",
+      "Progress tracking",
+      "Daily challenges",
+      "Leaderboard and achievements",
+      "Multiple language support"
+    ],
+    learningOutcomes: [
+      "Audio recording and playback",
+      "Gamification techniques",
+      "Localization and i18n",
+      "Progress tracking algorithms",
+      "Educational game design"
+    ]
+  },
+  {
+    title: "Freelance Project Manager",
+    description: "Build a tool for freelancers to manage projects, clients, and invoices.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Project timeline and milestones",
+      "Client communication portal",
+      "Time tracking",
+      "Invoice generation",
+      "Expense tracking",
+      "Contract templates"
+    ],
+    learningOutcomes: [
+      "PDF generation",
+      "Time tracking implementation",
+      "Financial calculations",
+      "Document management",
+      "Business logic implementation"
+    ]
+  },
+  {
+    title: "3D Product Configurator",
+    description: "Create a tool for customizing products in 3D with real-time preview.",
+    skillLevel: "advanced",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "3D model viewer",
+      "Color and material customization",
+      "Part selection and configuration",
+      "Price calculation",
+      "Save and share designs",
+      "Screenshot and export options"
+    ],
+    learningOutcomes: [
+      "3D graphics libraries",
+      "WebGL basics",
+      "Complex UI state management",
+      "Performance optimization",
+      "3D model handling"
+    ]
+  },
+  {
+    title: "Social Event Planner",
+    description: "Build an application for planning and organizing social events.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Event creation and management",
+      "Guest list and RSVP system",
+      "Task assignments",
+      "Budget tracking",
+      "Venue and vendor management",
+      "Interactive timeline"
+    ],
+    learningOutcomes: [
+      "Calendar integration",
+      "Email notifications",
+      "Multi-user collaboration",
+      "Data relationships",
+      "Form validation patterns"
+    ]
+  },
+  {
+    title: "Fitness Workout Builder",
+    description: "Create a tool for designing and tracking custom workout routines.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Exercise library with animations",
+      "Workout plan builder",
+      "Progress tracking",
+      "Timer and rest periods",
+      "Custom exercise creation",
+      "Workout sharing"
+    ],
+    learningOutcomes: [
+      "Animation implementation",
+      "Timer functionality",
+      "Data visualization",
+      "Complex form handling",
+      "State persistence"
+    ]
+  },
+  {
+    title: "Virtual Art Gallery",
+    description: "Build a platform for artists to showcase their work in a virtual space.",
+    skillLevel: "advanced",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "3D gallery environment",
+      "Artwork upload and curation",
+      "Virtual exhibition creation",
+      "Guided tours",
+      "Artist profiles",
+      "Social sharing"
+    ],
+    learningOutcomes: [
+      "3D web technologies",
+      "Image optimization",
+      "Virtual space design",
+      "User experience in 3D",
+      "Media handling"
+    ]
+  }
+]
+
+// Add more project ideas to additionalProjectIdeas
+const moreProjectIdeas: Array<Omit<ProjectIdea, "id">> = [
+  {
+    title: "Recipe AI Assistant",
+    description: "Create an AI-powered cooking assistant that helps users with recipes and meal planning.",
+    skillLevel: "advanced",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "Recipe suggestions based on ingredients",
+      "Step-by-step cooking instructions",
+      "Voice commands and responses",
+      "Nutritional information calculation",
+      "Shopping list generation",
+      "Meal plan scheduling"
+    ],
+    learningOutcomes: [
+      "AI API integration",
+      "Voice recognition",
+      "Natural language processing",
+      "Complex data processing",
+      "Accessibility implementation"
+    ]
+  },
+  {
+    title: "Virtual Wardrobe",
+    description: "Build a digital wardrobe management app with outfit suggestions.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Clothing item catalog",
+      "Outfit combination suggestions",
+      "Weather-based recommendations",
+      "Packing list generator",
+      "Style statistics",
+      "Shopping wishlist"
+    ],
+    learningOutcomes: [
+      "Image management",
+      "Recommendation algorithms",
+      "Weather API integration",
+      "Data categorization",
+      "User preference learning"
+    ]
+  },
+  {
+    title: "Budget Travel Planner",
+    description: "Create a travel planning tool that helps users find budget-friendly trips.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "Flight and hotel price tracking",
+      "Budget optimization",
+      "Itinerary builder",
+      "Cost splitting calculator",
+      "Local attractions finder",
+      "Travel checklist"
+    ],
+    learningOutcomes: [
+      "Third-party API integration",
+      "Price tracking algorithms",
+      "Geolocation services",
+      "Data aggregation",
+      "Complex calculations"
+    ]
+  },
+  {
+    title: "Plant Care Companion",
+    description: "Develop an app to help users care for their houseplants.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Plant identification",
+      "Care schedule reminders",
+      "Growth tracking",
+      "Disease diagnosis",
+      "Watering calculator",
+      "Light requirement monitor"
+    ],
+    learningOutcomes: [
+      "Image recognition integration",
+      "Notification systems",
+      "Calendar management",
+      "Expert system implementation",
+      "Environmental data processing"
+    ]
+  },
+  {
+    title: "Home Inventory System",
+    description: "Create a digital inventory system for home items and valuables.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Item cataloging with photos",
+      "Barcode/QR code scanning",
+      "Value tracking",
+      "Warranty management",
+      "Insurance report generation",
+      "Location mapping"
+    ],
+    learningOutcomes: [
+      "Camera API integration",
+      "Barcode scanning",
+      "PDF generation",
+      "Data organization",
+      "Search implementation"
+    ]
+  },
+  {
+    title: "Personal Knowledge Base",
+    description: "Build a tool for organizing and connecting personal knowledge and notes.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Rich text editor",
+      "Knowledge graph visualization",
+      "Tag system",
+      "Quick capture widget",
+      "Cross-reference linking",
+      "Export options"
+    ],
+    learningOutcomes: [
+      "Graph visualization",
+      "Text editor implementation",
+      "Data relationships",
+      "Search algorithms",
+      "Data visualization"
+    ]
+  },
+  {
+    title: "Digital Garden Portfolio",
+    description: "Create a modern portfolio site with digital garden concepts.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "nextjs", "tailwind"],
+    features: [
+      "Interactive project showcase",
+      "Blog with backlinks",
+      "Thought process visualization",
+      "Work timeline",
+      "Skills graph",
+      "Contact form"
+    ],
+    learningOutcomes: [
+      "SEO optimization",
+      "Graph data structures",
+      "Animation implementation",
+      "Form handling",
+      "Performance optimization"
+    ]
+  },
+  {
+    title: "Meditation Timer",
+    description: "Build a customizable meditation and mindfulness app.",
+    skillLevel: "beginner",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Custom timer settings",
+      "Ambient sound mixer",
+      "Guided meditation scripts",
+      "Progress tracking",
+      "Mood journal",
+      "Statistics dashboard"
+    ],
+    learningOutcomes: [
+      "Audio manipulation",
+      "Timer implementation",
+      "State management",
+      "Data visualization",
+      "Local storage"
+    ]
+  },
+  {
+    title: "Pet Care Tracker",
+    description: "Create an app for managing pet care and health records.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "tailwind"],
+    features: [
+      "Health record management",
+      "Vaccination scheduler",
+      "Medication reminders",
+      "Weight and growth tracking",
+      "Vet visit logger",
+      "Diet planner"
+    ],
+    learningOutcomes: [
+      "Calendar integration",
+      "Notification system",
+      "Data visualization",
+      "Form validation",
+      "PDF generation"
+    ]
+  },
+  {
+    title: "Study Group Finder",
+    description: "Build a platform for students to find and create study groups.",
+    skillLevel: "intermediate",
+    projectType: "application",
+    technologies: ["react", "typescript", "api"],
+    features: [
+      "Group matching algorithm",
+      "Virtual study room",
+      "Resource sharing",
+      "Schedule coordination",
+      "Progress tracking",
+      "Chat system"
+    ],
+    learningOutcomes: [
+      "Real-time communication",
+      "Matching algorithms",
+      "User authentication",
+      "File sharing",
+      "Calendar integration"
+    ]
+  }
+]
+
+// Update allProjectIdeas to include more ideas
+const allProjectIdeas: Array<Omit<ProjectIdea, "id">> = [...projectIdeas, ...additionalProjectIdeas, ...moreProjectIdeas]
 

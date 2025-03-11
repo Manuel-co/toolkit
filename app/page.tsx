@@ -1,5 +1,8 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +41,20 @@ interface FAQ {
   answer: string
 }
 
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 }
+}
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
@@ -67,10 +84,18 @@ export default function Home() {
         </div>
       </header>
       <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
+        <motion.section 
+          className="w-full py-12 md:py-24 lg:py-32 xl:py-48"
+          initial="initial"
+          animate="animate"
+          variants={staggerContainer}
+        >
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-              <div className="flex flex-col justify-center space-y-4">
+              <motion.div 
+                className="flex flex-col justify-center space-y-4"
+                variants={fadeInUp}
+              >
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
                     Powerful Tools for Creative Professionals
@@ -88,8 +113,11 @@ export default function Home() {
                     </Button>
                   </Link>
                 </div>
-              </div>
-              <div className="flex items-center justify-center">
+              </motion.div>
+              <motion.div 
+                className="flex items-center justify-center"
+                variants={fadeInUp}
+              >
                 <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[450px] lg:w-[450px]">
                   <div className="absolute inset-0  " />
                   <Image
@@ -100,60 +128,75 @@ export default function Home() {
                     priority
                   />
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        <section id="tools" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <motion.section 
+          id="tools" 
+          className="w-full py-12 md:py-24 lg:py-32 bg-muted"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <motion.div 
+              className="flex flex-col items-center justify-center space-y-4 text-center"
+              variants={fadeInUp}
+            >
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Our Tools</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl">
                   A comprehensive suite of tools designed to enhance your productivity and creativity.
                 </p>
               </div>
-            </div>
-            <div className="mx-auto grid justify-center gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-12">
+            </motion.div>
+            <motion.div 
+              className="mx-auto grid justify-center gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-12"
+              variants={staggerContainer}
+            >
               {tools.map((tool) => (
-                <Card key={tool.name} className="overflow-hidden transition-all hover:shadow-lg">
-                  <CardHeader className="pb-0">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <tool.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle>{tool.name}</CardTitle>
-                    <CardDescription>{tool.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    {/* <div className="relative aspect-video overflow-hidden rounded-lg">
-                      <Image
-                        src={`/placeholder.svg?height=180&width=320&text=${encodeURIComponent(tool.name)}`}
-                        alt={tool.name}
-                        fill
-                        className="object-cover  transition-transform hover:scale-105"
-                      />
-                    </div> */}
-                    {tool.badge && (
-                      <Badge className="absolute top-4 right-4" variant="secondary">
-                        {tool.badge}
+                <motion.div key={tool.name} variants={fadeInUp}>
+                  <Card className="overflow-hidden transition-all hover:shadow-lg">
+                    <CardHeader className="pb-0">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                        <tool.icon className="h-6 w-6 text-primary" />
+                      </div>
+                      <CardTitle>{tool.name}</CardTitle>
+                      <CardDescription>{tool.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      {/* <div className="relative aspect-video overflow-hidden rounded-lg">
+                        <Image
+                          src={`/placeholder.svg?height=180&width=320&text=${encodeURIComponent(tool.name)}`}
+                          alt={tool.name}
+                          fill
+                          className="object-cover  transition-transform hover:scale-105"
+                        />
+                      </div> */}
+                      {tool.badge && (
+                        <Badge className="absolute top-4 right-4" variant="secondary">
+                          {tool.badge}
+                        </Badge>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                      <Badge variant="outline" className="text-xs">
+                        Free • No Login
                       </Badge>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Badge variant="outline" className="text-xs">
-                      Free • No Login
-                    </Badge>
-                    <Link href={`/tools/${tool.slug}`}>
-                      <Button size="sm">
-                        Try Now
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </CardFooter>
-                </Card>
+                      <Link href={`/tools/${tool.slug}`}>
+                        <Button size="sm">
+                          Try Now
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
             <div className="flex justify-center mt-8">
               <Link href="/tools">
                 <Button size="lg">
@@ -163,11 +206,21 @@ export default function Home() {
               </Link>
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32">
+        <motion.section 
+          id="features" 
+          className="w-full py-12 md:py-24 lg:py-32"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <motion.div 
+              className="flex flex-col items-center justify-center space-y-4 text-center"
+              variants={fadeInUp}
+            >
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Key Features</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl">
@@ -175,50 +228,75 @@ export default function Home() {
                   productivity.
                 </p>
               </div>
-            </div>
-            <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:grid-cols-3 lg:gap-8 mt-8">
+            </motion.div>
+            <motion.div 
+              className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:grid-cols-3 lg:gap-8 mt-8"
+              variants={staggerContainer}
+            >
               {features.map((feature) => (
-                <div
+                <motion.div
                   key={feature.name}
                   className="flex flex-col items-center space-y-2 rounded-lg border p-6 transition-all hover:border-primary/50 hover:shadow-md"
+                  variants={fadeInUp}
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <h3 className="text-xl font-bold">{feature.name}</h3>
                   <p className="text-center text-muted-foreground">{feature.description}</p>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
-        </section>
+        </motion.section>
 
-        <section id="faq" className="w-full py-12 md:py-24 lg:py-32">
+        <motion.section 
+          id="faq" 
+          className="w-full py-12 md:py-24 lg:py-32"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <motion.div 
+              className="flex flex-col items-center justify-center space-y-4 text-center"
+              variants={fadeInUp}
+            >
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Frequently Asked Questions</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl">
                   Find answers to common questions about our tools and services.
                 </p>
               </div>
-            </div>
-            <div className="mx-auto grid max-w-5xl gap-6 mt-8">
+            </motion.div>
+            <motion.div 
+              className="mx-auto grid max-w-5xl gap-6 mt-8"
+              variants={staggerContainer}
+            >
               {faqs.map((faq, index) => (
-                <Card key={index}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{faq.question}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{faq.answer}</p>
-                  </CardContent>
-                </Card>
+                <motion.div key={index} variants={fadeInUp}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">{faq.question}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">{faq.answer}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <motion.section 
+          className="w-full py-12 md:py-24 lg:py-32 bg-muted"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+          variants={fadeInUp}
+        >
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
@@ -237,7 +315,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
+        </motion.section>
       </main>
       <footer className="w-full border-t py-6 md:py-0">
         <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
