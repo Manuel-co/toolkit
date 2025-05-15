@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import {
   ImageIcon,
   Paintbrush,
-  FileImage,
   Crop,
   Palette,
   FileText,
@@ -13,10 +12,11 @@ import {
   Layers,
   ArrowRight,
   Code,
-  Hash,
   Key,
   Lightbulb,
   FileIcon,
+  Link as LinkIcon,
+  BookOpen,
 } from "lucide-react"
 
 export default function ToolsPage() {
@@ -75,11 +75,12 @@ const tools = [
     slug: "background-remover",
   },
   {
-    name: "Image Cropper",
-    description: "Crop and resize images to your desired dimensions",
-    details: "Supports custom aspect ratios and precise pixel dimensions.",
-    icon: Crop,
-    slug: "image-cropper",
+    name: "Code Snippet Manager",
+    description: "Store, organize, and share your code snippets",
+    details: "Save reusable code, examples, and solutions with syntax highlighting and tags.",
+    icon: Code,
+    badge: "New",
+    slug: "code-snippet-manager",
   },
   {
     name: "Color Extractor",
@@ -87,6 +88,22 @@ const tools = [
     details: "Identifies dominant colors and creates harmonious palettes.",
     icon: Palette,
     slug: "color-extractor",
+  },
+  {
+    name: "Color Palette Generator",
+    description: "Generate beautiful color palettes for your projects",
+    details: "Create harmonious color combinations with HSL controls and save your favorites.",
+    icon: Palette,
+    badge: "New",
+    slug: "color-palette-generator",
+  },
+  {
+    name: "Gradient Generator",
+    description: "Create beautiful CSS gradients for your website",
+    details: "Design linear, radial, and conic gradients with custom colors and angles.",
+    icon: Palette,
+    badge: "New",
+    slug: "gradient-generator",
   },
   {
     name: "Image Compressor",
@@ -97,20 +114,6 @@ const tools = [
     slug: "image-compressor",
   },
   {
-    name: "Text Extractor",
-    description: "Extract text from images using OCR technology",
-    details: "Supports multiple languages and maintains text formatting.",
-    icon: FileText,
-    slug: "text-extractor",
-  },
-  {
-    name: "QR Code Generator",
-    description: "Generate QR codes for URLs, text, and more",
-    details: "Customizable QR codes with options for color and error correction.",
-    icon: QrCode,
-    slug: "qr-code-generator",
-  },
-  {
     name: "Image Converter",
     description: "Convert images between different formats",
     details: "Supports conversion between JPG, PNG, WEBP, SVG, and more.",
@@ -118,12 +121,19 @@ const tools = [
     slug: "image-converter",
   },
   {
-    name: "Gradient Generator",
-    description: "Create beautiful CSS gradients for your website",
-    details: "Design linear, radial, and conic gradients with custom colors and angles.",
-    icon: Palette,
+    name: "Image Cropper",
+    description: "Crop and resize images to your desired dimensions",
+    details: "Supports custom aspect ratios and precise pixel dimensions.",
+    icon: Crop,
+    slug: "image-cropper",
+  },
+  {
+    name: "Markdown Editor",
+    description: "Write and preview markdown documents",
+    details: "Save your work locally and export as markdown files with live preview.",
+    icon: BookOpen,
     badge: "New",
-    slug: "gradient-generator",
+    slug: "markdown-editor",
   },
   {
     name: "Password Generator",
@@ -141,11 +151,34 @@ const tools = [
     slug: "project-idea-generator",
   },
   {
+    name: "QR Code Generator",
+    description: "Generate QR codes for URLs, text, and more",
+    details: "Customizable QR codes with options for color and error correction.",
+    icon: QrCode,
+    slug: "qr-code-generator",
+  },
+  {
+    name: "Text Extractor",
+    description: "Extract text from various file formats",
+    details: "Supports TXT, MD, HTML, CSS, JS, JSON, XML, and CSV files.",
+    icon: FileText,
+    badge: "New",
+    slug: "text-extractor",
+  },
+  {
     name: "Text to PDF",
     description: "Convert text to PDF",
     details: "Convert text to PDF with a single click.",
     icon: FileIcon,
     slug: "text-to-pdf",
+  },
+  {
+    name: "URL Shortener",
+    description: "Create short, memorable links for your long URLs",
+    details: "Track clicks and manage your shortened URLs with custom slugs.",
+    icon: LinkIcon,
+    badge: "New",
+    slug: "url-shortener",
   },
 ]
 

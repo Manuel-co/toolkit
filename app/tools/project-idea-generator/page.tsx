@@ -20,6 +20,7 @@ export default function ProjectIdeaGeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [savedIdeas, setSavedIdeas] = useState<ProjectIdea[]>([])
   const [copied, setCopied] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Load saved ideas from localStorage on mount
   useEffect(() => {
@@ -27,12 +28,15 @@ export default function ProjectIdeaGeneratorPage() {
     if (saved) {
       setSavedIdeas(JSON.parse(saved))
     }
+    setIsLoading(false)
   }, [])
 
   // Save to localStorage whenever savedIdeas changes
   useEffect(() => {
-    localStorage.setItem('savedProjectIdeas', JSON.stringify(savedIdeas))
-  }, [savedIdeas])
+    if (!isLoading) {
+      localStorage.setItem('savedProjectIdeas', JSON.stringify(savedIdeas))
+    }
+  }, [savedIdeas, isLoading])
 
   // Handle technology selection
   const handleTechnologyChange = (technology: string, checked: boolean) => {
@@ -135,7 +139,7 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
         </div>
         <p className="text-muted-foreground">
           Generate creative project ideas for front-end development. Perfect for portfolio building, skill practice, or
-          overcoming developer's block.
+          overcoming developer's block. Choose your skill level, project type, and technologies to get personalized project suggestions.
         </p>
       </div>
 
@@ -144,7 +148,7 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
         <AlertTitle>Free to use</AlertTitle>
         <AlertDescription>
           This tool is completely free to use with no login required. Generate unlimited project ideas to inspire your
-          next development journey.
+          next development journey. Save your favorite ideas for later and share them with others.
         </AlertDescription>
       </Alert>
 
@@ -152,6 +156,9 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
         <div className="space-y-6">
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Project Parameters</h2>
+            <p className="text-sm text-muted-foreground">
+              Customize your project idea by selecting your skill level, preferred project type, and technologies you want to work with.
+            </p>
 
             <div className="space-y-2">
               <Label>Skill Level</Label>
@@ -195,6 +202,9 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
 
             <div className="space-y-2">
               <Label>Technologies (select at least one)</Label>
+              <p className="text-sm text-muted-foreground">
+                Choose the technologies you want to practice or learn. The generator will suggest projects that use these technologies.
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -293,10 +303,10 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
                         <CardDescription className="mt-2">{generatedIdea.description}</CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={copyIdea}>
+                        <Button size="sm" variant="outline" onClick={copyIdea} title="Copy to clipboard">
                           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={saveIdea}>
+                        <Button size="sm" variant="outline" onClick={saveIdea} title="Save idea">
                           <Bookmark className="h-4 w-4" />
                         </Button>
                       </div>
@@ -353,14 +363,22 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
             </TabsContent>
 
             <TabsContent value="saved" className="space-y-4 pt-4">
-              {savedIdeas.length > 0 ? (
+              {isLoading ? (
+                <div className="border rounded-lg p-8 text-center">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading saved ideas...</p>
+                </div>
+              ) : savedIdeas.length > 0 ? (
                 <div className="space-y-4">
                   {savedIdeas.map((idea) => (
                     <Card key={idea.id}>
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <CardTitle>{idea.title}</CardTitle>
-                          <Button size="sm" variant="ghost" onClick={() => removeSavedIdea(idea.id)}>
+                          <div>
+                            <CardTitle>{idea.title}</CardTitle>
+                            <CardDescription className="mt-2">{idea.description}</CardDescription>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => removeSavedIdea(idea.id)} title="Remove idea">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -378,11 +396,11 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
                             </svg>
                           </Button>
                         </div>
-                        <CardDescription className="mt-2">{idea.description}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline">{idea.skillLevel}</Badge>
+                          <Badge variant="outline">{idea.projectType}</Badge>
                           {idea.technologies.map((tech) => (
                             <Badge key={tech} variant="secondary">
                               {tech}
@@ -416,6 +434,18 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
           <li>Save interesting ideas for later or generate new ones until you find inspiration.</li>
           <li>Use the generated features list as a starting point - feel free to add your own creative touches!</li>
         </ol>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">Tips for Success</h2>
+        <ul className="list-disc list-inside space-y-2 ml-4">
+          <li>Start with projects that match your current skill level to build confidence.</li>
+          <li>Gradually increase complexity as you become more comfortable.</li>
+          <li>Don't be afraid to modify the suggested features to make the project your own.</li>
+          <li>Use the learning outcomes as a guide for what to focus on.</li>
+          <li>Save projects that interest you for future reference.</li>
+          <li>Consider combining multiple project ideas to create something unique.</li>
+        </ul>
       </div>
 
       <RelatedTools currentTool="project-idea-generator" />
