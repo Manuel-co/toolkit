@@ -1,46 +1,52 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
-import { ToolResult } from "@/components/tool-result"
 import { RelatedTools } from "@/components/related-tools"
 import { Button } from "@/components/ui/button"
-import { Paintbrush, Info, Loader2 } from "lucide-react"
+import { Paintbrush, Info, Loader2, Sparkles, Download, Image as ImageIcon, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { removeBackground } from "@imgly/background-removal"
+import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 
-const LoadingAnimation = () => (
-  <div className="flex flex-col items-center justify-center p-8 space-y-4 border rounded-lg bg-muted/5">
-    <div className="relative w-16 h-16">
-      <div className="absolute top-0 left-0 w-full h-full border-4 border-muted-foreground/20 rounded-full"></div>
-      <div className="absolute top-0 left-0 w-full h-full border-4 border-t-primary rounded-full animate-spin"></div>
-    </div>
-    <div className="space-y-2 text-center">
-      <p className="font-medium">Removing Background</p>
-      <p className="text-sm text-muted-foreground">This may take a few seconds...</p>
-    </div>
-  </div>
+const LoadingAnimation = ({ progress }: { progress: string }) => (
+  <Card className="border-2 border-primary/20">
+    <CardContent className="flex flex-col items-center justify-center p-8 space-y-6">
+      <div className="relative w-20 h-20">
+        <div className="absolute top-0 left-0 w-full h-full border-4 border-muted-foreground/20 rounded-full"></div>
+        <div className="absolute top-0 left-0 w-full h-full border-4 border-t-primary rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+        </div>
+      </div>
+      <div className="space-y-3 text-center w-full">
+        <p className="font-semibold text-lg">Removing Background</p>
+        <p className="text-sm text-muted-foreground">{progress || "Processing with AI..."}</p>
+        <Progress value={undefined} className="w-full" />
+      </div>
+    </CardContent>
+  </Card>
 )
 
 export default function BackgroundRemoverPage() {
   const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<string | null>(null)
-  const [apiKey, setApiKey] = useState("")
-
-  useEffect(() => {
-    // Load API key from environment variable
-    const envApiKey = process.env.NEXT_PUBLIC_REMOVE_BG_API_KEY
-    if (envApiKey && envApiKey !== "your_api_key_here") {
-      setApiKey(envApiKey)
-    }
-  }, [])
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null)
+  const [progress, setProgress] = useState<string>("")
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
     setResult(null)
+    setResultBlob(null)
+    setProgress("")
+    
+    // Create preview URL
+    const url = URL.createObjectURL(selectedFile)
+    setPreviewUrl(url)
   }
 
   const handleProcess = async () => {
@@ -49,161 +55,213 @@ export default function BackgroundRemoverPage() {
       return
     }
 
-    if (!apiKey) {
-      toast.error("Please set the remove.bg API key in your .env file")
-      return
-    }
-
     setIsProcessing(true)
+    setProgress("Loading AI model...")
 
     try {
-      // Convert file to base64
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      
-      const processImage = async (base64Data: string) => {
-        const response = await fetch('https://api.remove.bg/v1.0/removebg', {
-          method: 'POST',
-          headers: {
-            'X-Api-Key': apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image_file_b64: base64Data,
-            size: 'regular',
-            type: 'auto',
-            format: 'auto',
-            bg_color: null,
-          }),
-        })
+      const imageUrl = URL.createObjectURL(file)
+      setProgress("Processing image with AI...")
 
-        if (!response.ok) {
-          if (response.status === 402) {
-            throw new Error("Your remove.bg API key has no credits remaining. Please check your account at remove.bg/dashboard")
-          } else if (response.status === 401) {
-            throw new Error("Invalid API key. Please check your remove.bg API key in the .env file")
-          } else {
-            const errorData = await response.json().catch(() => null)
-            throw new Error(
-              errorData?.errors?.[0]?.title || 
-              `API Error (${response.status}): Please check your remove.bg account`
-            )
-          }
-        }
+      const blob = await removeBackground(imageUrl)
 
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        setResult(url)
-        toast.success("Background removed successfully!")
-      }
+      const resultUrl = URL.createObjectURL(blob)
+      setResult(resultUrl)
+      setResultBlob(blob)
 
-      reader.onload = async () => {
-        const base64Image = reader.result as string
-        const base64Data = base64Image.split(',')[1]
-        await processImage(base64Data)
-        setIsProcessing(false)
-      }
+      URL.revokeObjectURL(imageUrl)
 
-      reader.onerror = () => {
-        throw new Error('Failed to read the image file')
-      }
+      toast.success("Background removed successfully!")
     } catch (error) {
       console.error('Error:', error)
       toast.error(error instanceof Error ? error.message : "Failed to remove background")
+    } finally {
       setIsProcessing(false)
+      setProgress("")
     }
+  }
+
+  const handleDownload = () => {
+    if (!result || !resultBlob) return
+
+    const originalName = file?.name ?? "image"
+    const baseName = originalName.replace(/\.[^/.]+$/, "")
+    const downloadName = `${baseName}-no-bg.png`
+
+    const a = document.createElement("a")
+    a.href = result
+    a.download = downloadName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    
+    toast.success("Image downloaded!")
+  }
+
+  const handleReset = () => {
+    setFile(null)
+    setPreviewUrl(null)
+    setResult(null)
+    setResultBlob(null)
+    setProgress("")
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Paintbrush className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Background Remover</h1>
+      {/* Header */}
+      <div className="text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 mb-2">
+          <Paintbrush className="h-8 w-8 text-primary" />
         </div>
-        <p className="text-muted-foreground">
-          Remove backgrounds from images with a single click using remove.bg API. Perfect for product photos, portraits, and creating
-          transparent PNGs.
-        </p>
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">Background Remover</h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Remove backgrounds from images using AI-powered processing. Perfect for product photos, portraits, and creating
+            transparent PNGs.
+          </p>
+        </div>
       </div>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>API Key Required</AlertTitle>
-        <AlertDescription>
-          This tool uses the remove.bg API which requires credits. Get your API key from{" "}
-          <a href="https://www.remove.bg/api" target="_blank" rel="noopener noreferrer" className="underline">
-            remove.bg
-          </a>
-          {" "}and make sure you have available credits in your account.
+      {/* Features Alert */}
+      <Alert className="border-primary/20 bg-primary/5">
+        <Sparkles className="h-5 w-5 text-primary" />
+        <AlertTitle className="text-base">AI-Powered & Free</AlertTitle>
+        <AlertDescription className="text-sm">
+          Advanced AI removes backgrounds directly in your browser. No uploads to external servers,
+          completely free, and no API key required. First use downloads a ~50MB model (one-time).
         </AlertDescription>
       </Alert>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Upload Image</h2>
-          
-          <div className="space-y-4">
-            {!apiKey && (
-              <Alert variant="destructive">
-                <Info className="h-4 w-4" />
-                <AlertTitle>Missing API Key</AlertTitle>
-                <AlertDescription>
-                  Please set your remove.bg API key in the .env file to use this tool.
-                </AlertDescription>
-              </Alert>
-            )}
-            
+      {/* Main Content */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Upload Section */}
+        <Card className="border-2">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Upload Image</h2>
+            </div>
+
             <FileUpload accept="image/*" maxSize={10} onFileSelect={handleFileSelect} />
 
-            <Button 
-              onClick={handleProcess} 
-              disabled={!file || isProcessing || !apiKey} 
-              className="w-full"
+            {previewUrl && !result && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Preview:</p>
+                <div className="relative rounded-lg overflow-hidden border-2 border-dashed">
+                  <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-64 object-contain bg-muted" />
+                </div>
+              </div>
+            )}
+
+            <Button
+              onClick={handleProcess}
+              disabled={!file || isProcessing}
+              className="w-full h-12 text-base"
+              size="lg"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Processing...
                 </>
               ) : (
-                "Remove Background"
+                <>
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  Remove Background
+                </>
               )}
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Result</h2>
-          {isProcessing ? (
-            <LoadingAnimation />
-          ) : result ? (
-            <ToolResult 
-              title="Background Removed" 
-              resultImage={result} 
-              resultType="image" 
-            />
-          ) : (
-            <div className="border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">Upload an image and click "Remove Background" to see the result.</p>
+        {/* Result Section */}
+        <Card className="border-2">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold">Result</h2>
+              </div>
+              {result && (
+                <Button variant="ghost" size="sm" onClick={handleReset}>
+                  Reset
+                </Button>
+              )}
             </div>
-          )}
-        </div>
+
+            {isProcessing ? (
+              <LoadingAnimation progress={progress} />
+            ) : result ? (
+              <div className="space-y-4">
+                <div className="relative rounded-lg overflow-hidden border-2 border-primary/20">
+                  <div className="absolute inset-0 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%,transparent_75%,#f0f0f0_75%,#f0f0f0),linear-gradient(45deg,#f0f0f0_25%,transparent_25%,transparent_75%,#f0f0f0_75%,#f0f0f0)] bg-[length:20px_20px] bg-[position:0_0,10px_10px] dark:bg-[linear-gradient(45deg,#2a2a2a_25%,transparent_25%,transparent_75%,#2a2a2a_75%,#2a2a2a),linear-gradient(45deg,#2a2a2a_25%,transparent_25%,transparent_75%,#2a2a2a_75%,#2a2a2a)]"></div>
+                  <img src={result} alt="Result" className="relative w-full h-auto max-h-96 object-contain" />
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleDownload}
+                    className="flex-1 h-12 text-base"
+                    size="lg"
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download PNG
+                  </Button>
+                </div>
+
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    Background removed successfully! The transparent areas are shown with a checkered pattern.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-lg bg-muted/5 min-h-[300px]">
+                <ImageIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-center">
+                  Upload an image and click "Remove Background" to see the result.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">How to use</h2>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          {/* <li>Get an API key from <a href="https://www.remove.bg/api" target="_blank" rel="noopener noreferrer" className="underline">remove.bg</a> and ensure you have credits</li>
-          <li>Add your API key to the .env file as NEXT_PUBLIC_REMOVE_BG_API_KEY</li> */}
-          <li>Upload your image by dragging and dropping or clicking the upload area</li>
-          <li>Click "Remove Background" to process your image</li>
-          <li>Once processing is complete, you can download or share the transparent PNG</li>
-        </ol>
-      </div>
+      {/* Instructions */}
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <h2 className="text-xl font-bold">How to use</h2>
+          <ol className="space-y-3 ml-6">
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">1</span>
+              <span className="pt-0.5">Upload your image by dragging and dropping or clicking the upload area</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">2</span>
+              <span className="pt-0.5">Click "Remove Background" to process your image with AI</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">3</span>
+              <span className="pt-0.5">Wait for the AI model to process (first use downloads the model, ~50MB)</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-bold">4</span>
+              <span className="pt-0.5">Click "Download PNG" to save your transparent image</span>
+            </li>
+          </ol>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>First Time Use</AlertTitle>
+            <AlertDescription>
+              The first time you use this tool, it will download an AI model (~50MB). This is a one-time download
+              and subsequent uses will be much faster. All processing happens in your browser.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
 
       <RelatedTools currentTool="background-remover" />
     </div>
   )
 }
-

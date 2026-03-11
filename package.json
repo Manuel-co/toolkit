@@ -9,7 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@heyputer/puter.js": "^2.2.11",
     "@hookform/resolvers": "^3.9.1",
+    "@imgly/background-removal": "^1.7.0",
     "@llama-node/llama-cpp": "^0.1.6",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
@@ -48,11 +50,13 @@
     "date-fns": "3.3.1",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "^12.4.10",
+    "gsap": "^3.14.2",
     "input-otp": "1.4.1",
     "jspdf": "^3.0.0",
     "lucide-react": "^0.454.0",
     "next": "15.1.0",
     "next-themes": "latest",
+    "pdfkit": "^0.17.2",
     "qrcode": "^1.5.3",
     "react": "^18.2.0",
     "react-day-picker": "8.10.1",
@@ -69,6 +73,7 @@
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "tly-api": "^1.0.1",
     "vaul": "^0.9.6",
     "zod": "^3.24.1"
   },
