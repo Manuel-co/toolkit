@@ -2,450 +2,208 @@
 
 import { useState, useEffect } from "react"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { Lightbulb, Info, Copy, Check, RefreshCw, Bookmark } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { ToolHeader } from "@/components/tool-header"
+import { Lightbulb, Copy, Check, RefreshCw, Bookmark, X } from "lucide-react"
+import { toast } from "sonner"
+
+interface ProjectIdea {
+  id: string; title: string; description: string; skillLevel: string
+  projectType: string; technologies: string[]; features: string[]; learningOutcomes: string[]
+}
+
+const SKILL_LEVELS = ["beginner", "intermediate", "advanced"]
+const PROJECT_TYPES = ["application", "game", "dashboard", "ecommerce"]
+const TECH_OPTIONS = [
+  { value: "react", label: "React" }, { value: "vue", label: "Vue" },
+  { value: "angular", label: "Angular" }, { value: "vanilla", label: "Vanilla JS" },
+  { value: "tailwind", label: "Tailwind CSS" }, { value: "typescript", label: "TypeScript" },
+  { value: "nextjs", label: "Next.js" }, { value: "api", label: "API Integration" },
+]
 
 export default function ProjectIdeaGeneratorPage() {
   const [skillLevel, setSkillLevel] = useState("intermediate")
   const [projectType, setProjectType] = useState("application")
   const [technologies, setTechnologies] = useState<string[]>(["react", "tailwind"])
-  const [generatedIdea, setGeneratedIdea] = useState<ProjectIdea | null>(null)
+  const [idea, setIdea] = useState<ProjectIdea | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [savedIdeas, setSavedIdeas] = useState<ProjectIdea[]>([])
   const [copied, setCopied] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<"idea" | "saved">("idea")
 
-  // Load saved ideas from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('savedProjectIdeas')
-    if (saved) {
-      setSavedIdeas(JSON.parse(saved))
-    }
+    const saved = localStorage.getItem("savedProjectIdeas")
+    if (saved) setSavedIdeas(JSON.parse(saved))
     setIsLoading(false)
   }, [])
 
-  // Save to localStorage whenever savedIdeas changes
   useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('savedProjectIdeas', JSON.stringify(savedIdeas))
-    }
+    if (!isLoading) localStorage.setItem("savedProjectIdeas", JSON.stringify(savedIdeas))
   }, [savedIdeas, isLoading])
 
-  // Handle technology selection
-  const handleTechnologyChange = (technology: string, checked: boolean) => {
-    if (checked) {
-      setTechnologies([...technologies, technology])
-    } else {
-      setTechnologies(technologies.filter((t) => t !== technology))
-    }
-  }
+  const toggleTech = (t: string) => setTechnologies(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t])
 
-  // Generate a project idea based on selected parameters
   const generateIdea = () => {
     setIsGenerating(true)
-
-    // Filter ideas based on skill level
-    const skillLevelIdeas = allProjectIdeas.filter((idea: Omit<ProjectIdea, "id">) => idea.skillLevel === skillLevel)
-
-    // Filter by project type
-    const projectTypeIdeas = skillLevelIdeas.filter((idea: Omit<ProjectIdea, "id">) => idea.projectType === projectType)
-
-    // Find ideas that use at least one of the selected technologies
-    const techFilteredIdeas = projectTypeIdeas.filter((idea: Omit<ProjectIdea, "id">) =>
-      technologies.some((tech) => idea.technologies.includes(tech)),
-    )
-
-    // If no ideas match all criteria, fall back to skill level only
-    const eligibleIdeas = techFilteredIdeas.length > 0 ? techFilteredIdeas : skillLevelIdeas
-
-    // Select a random idea from the filtered list
-    const randomIdea = eligibleIdeas[Math.floor(Math.random() * eligibleIdeas.length)]
-
-    // Add some randomness to the features
-    const randomFeatures = [...randomIdea.features]
-    if (randomFeatures.length > 4) {
-      // Randomly remove 1-2 features to create variation
-      const removeCount = Math.floor(Math.random() * 2) + 1
-      for (let i = 0; i < removeCount; i++) {
-        const indexToRemove = Math.floor(Math.random() * randomFeatures.length)
-        randomFeatures.splice(indexToRemove, 1)
-      }
-    }
-
-    // Create a copy of the idea with potentially modified features
-    const generatedIdea = {
-      ...randomIdea,
-      features: randomFeatures,
-      id: Date.now().toString(), // Add a unique ID for saving
-    }
-
-    setGeneratedIdea(generatedIdea)
+    const bySkill = allProjectIdeas.filter(i => i.skillLevel === skillLevel)
+    const byType = bySkill.filter(i => i.projectType === projectType)
+    const byTech = byType.filter(i => technologies.some(t => i.technologies.includes(t)))
+    const pool = byTech.length > 0 ? byTech : bySkill
+    const base = pool[Math.floor(Math.random() * pool.length)]
+    const features = [...base.features]
+    if (features.length > 4) features.splice(Math.floor(Math.random() * features.length), Math.floor(Math.random() * 2) + 1)
+    setIdea({ ...base, features, id: Date.now().toString() })
     setIsGenerating(false)
+    setActiveTab("idea")
   }
 
-  // Save the current idea
   const saveIdea = () => {
-    if (generatedIdea && !savedIdeas.some((idea) => idea.id === generatedIdea.id)) {
-      setSavedIdeas([...savedIdeas, generatedIdea])
-    }
+    if (!idea || savedIdeas.some(s => s.id === idea.id)) return
+    setSavedIdeas(p => [...p, idea]); toast.success("Idea saved!")
   }
 
-  // Copy idea to clipboard
   const copyIdea = () => {
-    if (!generatedIdea) return
-
-    const ideaText = `
-# ${generatedIdea.title}
-
-## Description
-${generatedIdea.description}
-
-## Skill Level
-${generatedIdea.skillLevel.charAt(0).toUpperCase() + generatedIdea.skillLevel.slice(1)}
-
-## Technologies
-${generatedIdea.technologies.map((t) => `- ${t.charAt(0).toUpperCase() + t.slice(1)}`).join("\n")}
-
-## Features
-${generatedIdea.features.map((f) => `- ${f}`).join("\n")}
-
-## Learning Outcomes
-${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
-    `
-
-    navigator.clipboard.writeText(ideaText)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (!idea) return
+    const text = `# ${idea.title}\n\n${idea.description}\n\n## Technologies\n${idea.technologies.map(t => `- ${t}`).join("\n")}\n\n## Features\n${idea.features.map(f => `- ${f}`).join("\n")}\n\n## Learning Outcomes\n${idea.learningOutcomes.map(o => `- ${o}`).join("\n")}`
+    navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  // Remove a saved idea
-  const removeSavedIdea = (id: string) => {
-    setSavedIdeas(savedIdeas.filter((idea) => idea.id !== id))
-  }
+  const tabClass = (active: boolean) => `flex-1 py-1.5 text-xs font-medium uppercase tracking-wider rounded-md transition-all ${active ? "bg-white text-black" : "text-[#A0A0A0] hover:text-white"}`
+  const pillClass = (active: boolean) => `rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition-all cursor-pointer ${active ? "border-[#4D9FFF]/40 bg-[#4D9FFF]/[0.06] text-white" : "border-white/[0.08] text-[#A0A0A0] hover:border-white/20 hover:text-white"}`
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Lightbulb className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Front-end Project Ideas Generator</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Generate creative project ideas for front-end development. Perfect for portfolio building, skill practice, or
-          overcoming developer's block. Choose your skill level, project type, and technologies to get personalized project suggestions.
-        </p>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Free to use</AlertTitle>
-        <AlertDescription>
-          This tool is completely free to use with no login required. Generate unlimited project ideas to inspire your
-          next development journey. Save your favorite ideas for later and share them with others.
-        </AlertDescription>
-      </Alert>
+      <ToolHeader icon={Lightbulb} label="Developer" title="Project Idea Generator" description="Generate creative front-end project ideas based on your skill level, project type, and preferred technologies." />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Project Parameters</h2>
-            <p className="text-sm text-muted-foreground">
-              Customize your project idea by selecting your skill level, preferred project type, and technologies you want to work with.
-            </p>
-
+        {/* Controls */}
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-5">
             <div className="space-y-2">
-              <Label>Skill Level</Label>
-              <RadioGroup defaultValue="intermediate" value={skillLevel} onValueChange={setSkillLevel}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="beginner" id="beginner" />
-                  <Label htmlFor="beginner">Beginner</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="intermediate" id="intermediate" />
-                  <Label htmlFor="intermediate">Intermediate</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="advanced" id="advanced" />
-                  <Label htmlFor="advanced">Advanced</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Project Type</Label>
-              <RadioGroup defaultValue="application" value={projectType} onValueChange={setProjectType}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="application" id="application" />
-                  <Label htmlFor="application">Application</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="game" id="game" />
-                  <Label htmlFor="game">Game</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="dashboard" id="dashboard" />
-                  <Label htmlFor="dashboard">Dashboard</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="ecommerce" id="ecommerce" />
-                  <Label htmlFor="ecommerce">E-commerce</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Technologies (select at least one)</Label>
-              <p className="text-sm text-muted-foreground">
-                Choose the technologies you want to practice or learn. The generator will suggest projects that use these technologies.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="react"
-                    checked={technologies.includes("react")}
-                    onCheckedChange={(checked) => handleTechnologyChange("react", checked as boolean)}
-                  />
-                  <Label htmlFor="react">React</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="vue"
-                    checked={technologies.includes("vue")}
-                    onCheckedChange={(checked) => handleTechnologyChange("vue", checked as boolean)}
-                  />
-                  <Label htmlFor="vue">Vue</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="angular"
-                    checked={technologies.includes("angular")}
-                    onCheckedChange={(checked) => handleTechnologyChange("angular", checked as boolean)}
-                  />
-                  <Label htmlFor="angular">Angular</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="vanilla"
-                    checked={technologies.includes("vanilla")}
-                    onCheckedChange={(checked) => handleTechnologyChange("vanilla", checked as boolean)}
-                  />
-                  <Label htmlFor="vanilla">Vanilla JS</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="tailwind"
-                    checked={technologies.includes("tailwind")}
-                    onCheckedChange={(checked) => handleTechnologyChange("tailwind", checked as boolean)}
-                  />
-                  <Label htmlFor="tailwind">Tailwind CSS</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="typescript"
-                    checked={technologies.includes("typescript")}
-                    onCheckedChange={(checked) => handleTechnologyChange("typescript", checked as boolean)}
-                  />
-                  <Label htmlFor="typescript">TypeScript</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="nextjs"
-                    checked={technologies.includes("nextjs")}
-                    onCheckedChange={(checked) => handleTechnologyChange("nextjs", checked as boolean)}
-                  />
-                  <Label htmlFor="nextjs">Next.js</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="api"
-                    checked={technologies.includes("api")}
-                    onCheckedChange={(checked) => handleTechnologyChange("api", checked as boolean)}
-                  />
-                  <Label htmlFor="api">API Integration</Label>
-                </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Skill Level</p>
+              <div className="flex gap-2 flex-wrap">
+                {SKILL_LEVELS.map(s => (
+                  <button key={s} onClick={() => setSkillLevel(s)} className={pillClass(skillLevel === s)}>{s}</button>
+                ))}
               </div>
             </div>
-
-            <Button onClick={generateIdea} className="w-full" disabled={technologies.length === 0 || isGenerating}>
-              {isGenerating ? (
-                <>Generating...</>
-              ) : (
-                <>
-                  <Lightbulb className="mr-2 h-4 w-4" />
-                  Generate Project Idea
-                </>
-              )}
-            </Button>
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Project Type</p>
+              <div className="flex gap-2 flex-wrap">
+                {PROJECT_TYPES.map(t => (
+                  <button key={t} onClick={() => setProjectType(t)} className={pillClass(projectType === t)}>{t}</button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Technologies</p>
+              <div className="grid grid-cols-2 gap-2">
+                {TECH_OPTIONS.map(({ value, label }) => (
+                  <label key={value} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-all ${technologies.includes(value) ? "border-[#4D9FFF]/40 bg-[#4D9FFF]/[0.06] text-white" : "border-white/[0.08] text-[#A0A0A0] hover:border-white/20"}`}>
+                    <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-all ${technologies.includes(value) ? "border-[#4D9FFF] bg-[#4D9FFF]" : "border-white/20 bg-transparent"}`}>
+                      {technologies.includes(value) && <Check className="h-2.5 w-2.5 text-black" />}
+                    </div>
+                    <input type="checkbox" className="sr-only" checked={technologies.includes(value)} onChange={() => toggleTech(value)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
+
+          <button onClick={generateIdea} disabled={technologies.length === 0 || isGenerating}
+            className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <Lightbulb className="h-4 w-4" />{isGenerating ? "Generating…" : "Generate Project Idea"}
+          </button>
         </div>
 
-        <div className="space-y-4">
-          <Tabs defaultValue="idea">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="idea">Generated Idea</TabsTrigger>
-              <TabsTrigger value="saved">Saved Ideas ({savedIdeas.length})</TabsTrigger>
-            </TabsList>
+        {/* Results */}
+        <div className="space-y-3">
+          <div className="flex gap-1 rounded-xl border border-white/[0.08] bg-white/[0.02] p-1">
+            <button onClick={() => setActiveTab("idea")} className={tabClass(activeTab === "idea")}>Generated Idea</button>
+            <button onClick={() => setActiveTab("saved")} className={tabClass(activeTab === "saved")}>Saved ({savedIdeas.length})</button>
+          </div>
 
-            <TabsContent value="idea" className="space-y-4 pt-4">
-              {generatedIdea ? (
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
+          {activeTab === "idea" && (
+            idea ? (
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-white">{idea.title}</h2>
+                    <p className="text-sm text-[#A0A0A0] mt-1">{idea.description}</p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={copyIdea} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-[#A0A0A0] hover:text-white transition-all">
+                      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={saveIdea} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-[#A0A0A0] hover:text-white transition-all">
+                      <Bookmark className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#A0A0A0]">{idea.skillLevel}</span>
+                  <span className="rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#A0A0A0]">{idea.projectType}</span>
+                  {idea.technologies.map(t => <span key={t} className="rounded-md border border-[#4D9FFF]/20 bg-[#4D9FFF]/[0.06] px-2 py-0.5 text-[10px] text-[#4D9FFF]">{t}</span>)}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Features</p>
+                  <ul className="space-y-1">
+                    {idea.features.map((f, i) => <li key={i} className="text-sm text-[#A0A0A0] flex gap-2"><span className="text-[#4D9FFF] shrink-0">•</span>{f}</li>)}
+                  </ul>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Learning Outcomes</p>
+                  <ul className="space-y-1">
+                    {idea.learningOutcomes.map((o, i) => <li key={i} className="text-sm text-[#A0A0A0] flex gap-2"><span className="text-white/30 shrink-0">→</span>{o}</li>)}
+                  </ul>
+                </div>
+                <button onClick={generateIdea} disabled={isGenerating}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-[#E5E5E5] transition-all hover:border-white/20 hover:text-white disabled:opacity-30">
+                  <RefreshCw className="h-4 w-4" />Generate Another
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-10 text-center space-y-2">
+                <Lightbulb className="h-10 w-10 text-white/10 mx-auto" />
+                <p className="text-sm text-[#A0A0A0]">Select your parameters and generate an idea</p>
+              </div>
+            )
+          )}
+
+          {activeTab === "saved" && (
+            isLoading ? (
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 flex justify-center">
+                <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full" />
+              </div>
+            ) : savedIdeas.length > 0 ? (
+              <div className="space-y-3">
+                {savedIdeas.map(s => (
+                  <div key={s.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <CardTitle>{generatedIdea.title}</CardTitle>
-                        <CardDescription className="mt-2">{generatedIdea.description}</CardDescription>
+                        <p className="text-sm font-medium text-white">{s.title}</p>
+                        <p className="text-xs text-[#A0A0A0] mt-0.5 line-clamp-2">{s.description}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={copyIdea} title="Copy to clipboard">
-                          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={saveIdea} title="Save idea">
-                          <Bookmark className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <button onClick={() => setSavedIdeas(p => p.filter(x => x.id !== s.id))} className="text-[#A0A0A0] hover:text-white transition-colors shrink-0">
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline">{generatedIdea.skillLevel}</Badge>
-                      <Badge variant="outline">{generatedIdea.projectType}</Badge>
-                      {generatedIdea.technologies.map((tech) => (
-                        <Badge key={tech} variant="secondary">
-                          {tech}
-                        </Badge>
-                      ))}
+                    <div className="flex flex-wrap gap-1">
+                      <span className="rounded-md border border-white/[0.08] px-1.5 py-0.5 text-[10px] text-[#A0A0A0]">{s.skillLevel}</span>
+                      {s.technologies.slice(0, 3).map(t => <span key={t} className="rounded-md border border-[#4D9FFF]/20 bg-[#4D9FFF]/[0.06] px-1.5 py-0.5 text-[10px] text-[#4D9FFF]">{t}</span>)}
                     </div>
-
-                    <div>
-                      <h3 className="font-medium mb-2">Features</h3>
-                      <ul className="list-disc list-inside space-y-1 ml-2">
-                        {generatedIdea.features.map((feature, index) => (
-                          <li key={index} className="text-sm">
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h3 className="font-medium mb-2">Learning Outcomes</h3>
-                      <ul className="list-disc list-inside space-y-1 ml-2">
-                        {generatedIdea.learningOutcomes.map((outcome, index) => (
-                          <li key={index} className="text-sm">
-                            {outcome}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button onClick={generateIdea} variant="outline" className="w-full" disabled={isGenerating}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Generate Another Idea
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ) : (
-                <div className="border rounded-lg p-8 text-center">
-                  <Lightbulb className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    Select your parameters and click "Generate Project Idea" to get started.
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="saved" className="space-y-4 pt-4">
-              {isLoading ? (
-                <div className="border rounded-lg p-8 text-center">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-                  <p className="text-muted-foreground">Loading saved ideas...</p>
-                </div>
-              ) : savedIdeas.length > 0 ? (
-                <div className="space-y-4">
-                  {savedIdeas.map((idea) => (
-                    <Card key={idea.id}>
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle>{idea.title}</CardTitle>
-                            <CardDescription className="mt-2">{idea.description}</CardDescription>
-                          </div>
-                          <Button size="sm" variant="ghost" onClick={() => removeSavedIdea(idea.id)} title="Remove idea">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="lucide lucide-x"
-                            >
-                              <path d="M18 6 6 18" />
-                              <path d="m6 6 12 12" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">{idea.skillLevel}</Badge>
-                          <Badge variant="outline">{idea.projectType}</Badge>
-                          {idea.technologies.map((tech) => (
-                            <Badge key={tech} variant="secondary">
-                              {tech}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="border rounded-lg p-8 text-center">
-                  <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    You haven't saved any ideas yet. Generate an idea and click the bookmark icon to save it.
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-10 text-center space-y-2">
+                <Bookmark className="h-10 w-10 text-white/10 mx-auto" />
+                <p className="text-sm text-[#A0A0A0]">No saved ideas yet</p>
+              </div>
+            )
+          )}
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">How to Use This Generator</h2>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          <li>Select your skill level to get appropriately challenging projects.</li>
-          <li>Choose a project type that interests you or matches your portfolio needs.</li>
-          <li>Select the technologies you want to practice or learn.</li>
-          <li>Click "Generate Project Idea" to get a customized project suggestion.</li>
-          <li>Save interesting ideas for later or generate new ones until you find inspiration.</li>
-          <li>Use the generated features list as a starting point - feel free to add your own creative touches!</li>
-        </ol>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Tips for Success</h2>
-        <ul className="list-disc list-inside space-y-2 ml-4">
-          <li>Start with projects that match your current skill level to build confidence.</li>
-          <li>Gradually increase complexity as you become more comfortable.</li>
-          <li>Don't be afraid to modify the suggested features to make the project your own.</li>
-          <li>Use the learning outcomes as a guide for what to focus on.</li>
-          <li>Save projects that interest you for future reference.</li>
-          <li>Consider combining multiple project ideas to create something unique.</li>
-        </ul>
       </div>
 
       <RelatedTools currentTool="project-idea-generator" />
@@ -453,892 +211,33 @@ ${generatedIdea.learningOutcomes.map((o) => `- ${o}`).join("\n")}
   )
 }
 
-// Types
-interface ProjectIdea {
-  id: string
-  title: string
-  description: string
-  skillLevel: string
-  projectType: string
-  technologies: string[]
-  features: string[]
-  learningOutcomes: string[]
-}
+// ── Data ─────────────────────────────────────────────────────────────────────
 
-// Sample project ideas database
 const projectIdeas: Omit<ProjectIdea, "id">[] = [
-  {
-    title: "Weather Dashboard",
-    description:
-      "Create an interactive weather dashboard that displays current weather and forecasts for multiple locations.",
-    skillLevel: "beginner",
-    projectType: "dashboard",
-    technologies: ["react", "api", "tailwind"],
-    features: [
-      "Search for cities and save favorites",
-      "Display current temperature, humidity, and wind speed",
-      "Show 5-day forecast with icons",
-      "Toggle between Celsius and Fahrenheit",
-      "Responsive design for mobile and desktop",
-      "Geolocation to detect user's current location",
-    ],
-    learningOutcomes: [
-      "Working with third-party APIs",
-      "State management in React",
-      "Responsive design principles",
-      "Handling user location data",
-      "Data visualization basics",
-    ],
-  },
-  {
-    title: "Task Management Application",
-    description: "Build a Kanban-style task management app with drag-and-drop functionality.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Create, edit, and delete tasks",
-      "Drag and drop tasks between columns (To Do, In Progress, Done)",
-      "Filter and search tasks",
-      "Set due dates and priority levels",
-      "Local storage to persist data",
-      "Dark/light mode toggle",
-    ],
-    learningOutcomes: [
-      "Advanced state management",
-      "Drag and drop implementation",
-      "TypeScript with React",
-      "Local storage and data persistence",
-      "UI/UX design principles",
-    ],
-  },
-  {
-    title: "E-commerce Product Page",
-    description: "Create a detailed product page with gallery, variants, and cart functionality.",
-    skillLevel: "intermediate",
-    projectType: "ecommerce",
-    technologies: ["vue", "tailwind", "api"],
-    features: [
-      "Image gallery with zoom functionality",
-      "Product variants (size, color, etc.)",
-      "Add to cart and quantity selector",
-      "Product reviews and ratings",
-      "Related products carousel",
-      "Stock availability indicator",
-    ],
-    learningOutcomes: [
-      "Vue component architecture",
-      "State management in Vue",
-      "E-commerce UX best practices",
-      "Image handling and optimization",
-      "Form validation techniques",
-    ],
-  },
-  {
-    title: "Memory Card Game",
-    description: "Build a memory card matching game with different difficulty levels and themes.",
-    skillLevel: "beginner",
-    projectType: "game",
-    technologies: ["vanilla", "tailwind"],
-    features: [
-      "Grid of cards that can be flipped",
-      "Match pairs of cards to remove them",
-      "Timer and move counter",
-      "Multiple difficulty levels",
-      "Different card themes (animals, colors, etc.)",
-      "Victory animation and score tracking",
-    ],
-    learningOutcomes: [
-      "DOM manipulation",
-      "CSS animations and transitions",
-      "Game logic implementation",
-      "Randomization algorithms",
-      "Vanilla JavaScript best practices",
-    ],
-  },
-  {
-    title: "Real-time Chat Application",
-    description: "Create a real-time chat application with rooms and user presence indicators.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "nextjs", "typescript"],
-    features: [
-      "Real-time messaging",
-      "Create and join different chat rooms",
-      "User authentication",
-      "Online/offline status indicators",
-      "Message read receipts",
-      "File and image sharing",
-      "Message search functionality",
-    ],
-    learningOutcomes: [
-      "Real-time data handling",
-      "WebSocket implementation",
-      "Authentication and authorization",
-      "Advanced React patterns",
-      "Server-side rendering with Next.js",
-    ],
-  },
-  {
-    title: "Interactive Data Visualization Dashboard",
-    description: "Build a dashboard with interactive charts and filters to visualize complex datasets.",
-    skillLevel: "advanced",
-    projectType: "dashboard",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Multiple chart types (bar, line, pie, etc.)",
-      "Interactive filters and date ranges",
-      "Data export functionality",
-      "Responsive design for all devices",
-      "Dark/light mode toggle",
-      "Drill-down capabilities for detailed analysis",
-      "Save and share report configurations",
-    ],
-    learningOutcomes: [
-      "Data visualization libraries",
-      "Complex state management",
-      "Performance optimization for large datasets",
-      "Advanced filtering and data manipulation",
-      "Accessibility in data visualization",
-    ],
-  },
-  {
-    title: "Recipe Finder Application",
-    description: "Create an app that helps users find recipes based on ingredients they have.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["vue", "api", "tailwind"],
-    features: [
-      "Search by ingredient, cuisine, or diet",
-      "Filter by cooking time and difficulty",
-      "Save favorite recipes",
-      "Generate shopping lists",
-      "Responsive design for mobile use in the kitchen",
-      "Nutrition information display",
-    ],
-    learningOutcomes: [
-      "Complex API integration",
-      "Search and filter functionality",
-      "Vue composition API",
-      "Form handling and validation",
-      "Mobile-first design approach",
-    ],
-  },
-  {
-    title: "Personal Finance Tracker",
-    description: "Build an application to track personal expenses, income, and savings goals.",
-    skillLevel: "intermediate",
-    projectType: "dashboard",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Add and categorize expenses and income",
-      "Visualize spending patterns with charts",
-      "Set and track savings goals",
-      "Monthly budget planning",
-      "Export reports as PDF or CSV",
-      "Recurring transactions setup",
-    ],
-    learningOutcomes: [
-      "Form handling and validation",
-      "Data visualization",
-      "Local storage or database integration",
-      "Financial calculations",
-      "Data export functionality",
-    ],
-  },
-  {
-    title: "Multiplayer Tic-Tac-Toe Game",
-    description: "Create a real-time multiplayer tic-tac-toe game with matchmaking.",
-    skillLevel: "intermediate",
-    projectType: "game",
-    technologies: ["react", "nextjs", "api"],
-    features: [
-      "Real-time gameplay",
-      "Player matchmaking",
-      "Game history and statistics",
-      "Chat functionality",
-      "Customizable game tokens",
-      "Responsive design for mobile play",
-    ],
-    learningOutcomes: [
-      "Real-time communication",
-      "Game state management",
-      "Multiplayer game logic",
-      "User authentication",
-      "Optimistic UI updates",
-    ],
-  },
-  {
-    title: "E-commerce Shopping Cart",
-    description: "Build a fully functional shopping cart system with product catalog.",
-    skillLevel: "intermediate",
-    projectType: "ecommerce",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Product listing with filters",
-      "Add/remove items from cart",
-      "Quantity adjustments",
-      "Cart persistence across sessions",
-      "Checkout process with form validation",
-      "Order summary with tax calculation",
-    ],
-    learningOutcomes: [
-      "Complex state management",
-      "Local storage for cart persistence",
-      "Form validation and user input",
-      "Price and tax calculations",
-      "Responsive e-commerce design patterns",
-    ],
-  },
-  {
-    title: "Interactive Quiz Application",
-    description: "Create a quiz app with multiple categories, difficulty levels, and scoring.",
-    skillLevel: "beginner",
-    projectType: "application",
-    technologies: ["vanilla", "api"],
-    features: [
-      "Multiple choice questions from various categories",
-      "Timer for each question",
-      "Score tracking and high scores",
-      "Difficulty selection",
-      "Results page with correct answers",
-      "Share results on social media",
-    ],
-    learningOutcomes: [
-      "DOM manipulation",
-      "API integration for quiz questions",
-      "Timer functionality",
-      "Score calculation algorithms",
-      "Form handling for quiz answers",
-    ],
-  },
-  {
-    title: "Markdown Note Taking App",
-    description: "Build a note-taking application with markdown support and organization features.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Markdown editor with preview",
-      "Note organization with folders and tags",
-      "Search functionality",
-      "Dark/light mode toggle",
-      "Export notes as PDF or markdown files",
-      "Keyboard shortcuts for power users",
-    ],
-    learningOutcomes: [
-      "Markdown parsing and rendering",
-      "File system-like organization in frontend",
-      "Search algorithm implementation",
-      "Local storage or database integration",
-      "Keyboard event handling",
-    ],
-  },
-  {
-    title: "Social Media Dashboard",
-    description: "Create a dashboard to track and analyze social media metrics across platforms.",
-    skillLevel: "advanced",
-    projectType: "dashboard",
-    technologies: ["react", "nextjs", "typescript", "api"],
-    features: [
-      "Integration with multiple social platforms",
-      "Real-time follower and engagement metrics",
-      "Historical data visualization",
-      "Scheduled post planning",
-      "Content performance analysis",
-      "Custom report generation",
-    ],
-    learningOutcomes: [
-      "OAuth and API integration",
-      "Real-time data updates",
-      "Complex data visualization",
-      "Date handling and time zones",
-      "Report generation and export",
-    ],
-  },
-  {
-    title: "2D Platformer Game",
-    description: "Build a simple 2D platformer game with physics, collectibles, and levels.",
-    skillLevel: "advanced",
-    projectType: "game",
-    technologies: ["vanilla", "typescript"],
-    features: [
-      "Character movement and jumping",
-      "Collision detection",
-      "Collectible items and scoring",
-      "Multiple levels with increasing difficulty",
-      "Enemy characters with basic AI",
-      "Sound effects and background music",
-    ],
-    learningOutcomes: [
-      "Game physics implementation",
-      "Canvas API for rendering",
-      "Game loop and animation frames",
-      "Audio handling in browsers",
-      "Level design principles",
-    ],
-  },
-  {
-    title: "E-commerce Product Catalog",
-    description: "Create a responsive product catalog with filtering, sorting, and search capabilities.",
-    skillLevel: "beginner",
-    projectType: "ecommerce",
-    technologies: ["vue", "tailwind", "api"],
-    features: [
-      "Grid and list view options",
-      "Filter by category, price, and attributes",
-      "Sort by relevance, price, and popularity",
-      "Search with autocomplete",
-      "Pagination or infinite scroll",
-      "Quick view product modal",
-    ],
-    learningOutcomes: [
-      "Data filtering and sorting algorithms",
-      "Search functionality implementation",
-      "Responsive grid layouts",
-      "Vue component composition",
-      "API integration for product data",
-    ],
-  },
-  {
-    title: "Habit Tracker Application",
-    description: "Build an application to track daily habits and visualize progress over time.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "tailwind", "typescript"],
-    features: [
-      "Create and track daily, weekly, or monthly habits",
-      "Streak counting and visualization",
-      "Calendar view of completed habits",
-      "Progress statistics and charts",
-      "Reminder notifications",
-      "Goal setting for habit formation",
-    ],
-    learningOutcomes: [
-      "Complex state management",
-      "Date manipulation and calculations",
-      "Data visualization for progress",
-      "Local storage or database integration",
-      "Notification API usage",
-    ],
-  },
-  {
-    title: "Real Estate Listing Website",
-    description: "Create a property listing website with search, filters, and interactive maps.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "nextjs", "api", "typescript"],
-    features: [
-      "Property search with multiple filters",
-      "Interactive map with property markers",
-      "Property details page with image gallery",
-      "Save favorite properties",
-      "Contact forms for inquiries",
-      "Mortgage calculator",
-      "Similar properties recommendation",
-    ],
-    learningOutcomes: [
-      "Map API integration",
-      "Complex filtering and search",
-      "Image gallery implementation",
-      "Form handling and validation",
-      "SEO optimization for listings",
-    ],
-  },
-  {
-    title: "Pomodoro Timer Application",
-    description: "Build a customizable Pomodoro timer with task tracking and statistics.",
-    skillLevel: "beginner",
-    projectType: "application",
-    technologies: ["vanilla", "tailwind"],
-    features: [
-      "Customizable work and break intervals",
-      "Task list integration",
-      "Sound notifications",
-      "Session statistics and history",
-      "Dark/light mode toggle",
-      "Desktop notifications",
-    ],
-    learningOutcomes: [
-      "Timer implementation in JavaScript",
-      "Local storage for settings and history",
-      "Notification API usage",
-      "Audio API for alerts",
-      "Data visualization for statistics",
-    ],
-  },
-  {
-    title: "Interactive Story Game",
-    description: "Create a text-based adventure game with branching storylines and choices.",
-    skillLevel: "intermediate",
-    projectType: "game",
-    technologies: ["react", "tailwind"],
-    features: [
-      "Branching narrative with player choices",
-      "Character stats and inventory system",
-      "Save and load game progress",
-      "Atmospheric sound effects and music",
-      "Animated transitions between scenes",
-      "Multiple endings based on choices",
-    ],
-    learningOutcomes: [
-      "State management for complex game states",
-      "Story tree data structures",
-      "Save state persistence",
-      "CSS animations and transitions",
-      "Audio management in web applications",
-    ],
-  }
+  { title: "Weather Dashboard", description: "Create an interactive weather dashboard that displays current weather and forecasts for multiple locations.", skillLevel: "beginner", projectType: "dashboard", technologies: ["react", "api", "tailwind"], features: ["Search for cities and save favorites", "Display current temperature, humidity, and wind speed", "Show 5-day forecast with icons", "Toggle between Celsius and Fahrenheit", "Responsive design for mobile and desktop"], learningOutcomes: ["Working with third-party APIs", "State management in React", "Responsive design principles", "Handling user location data"] },
+  { title: "Task Management Application", description: "Build a Kanban-style task management app with drag-and-drop functionality.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Create, edit, and delete tasks", "Drag and drop tasks between columns", "Filter and search tasks", "Set due dates and priority levels", "Local storage to persist data"], learningOutcomes: ["Advanced state management", "Drag and drop implementation", "TypeScript with React", "Local storage and data persistence"] },
+  { title: "E-commerce Product Page", description: "Create a detailed product page with gallery, variants, and cart functionality.", skillLevel: "intermediate", projectType: "ecommerce", technologies: ["vue", "tailwind", "api"], features: ["Image gallery with zoom functionality", "Product variants (size, color, etc.)", "Add to cart and quantity selector", "Product reviews and ratings", "Related products carousel"], learningOutcomes: ["Vue component architecture", "State management in Vue", "E-commerce UX best practices", "Image handling and optimization"] },
+  { title: "Memory Card Game", description: "Build a memory card matching game with different difficulty levels and themes.", skillLevel: "beginner", projectType: "game", technologies: ["vanilla", "tailwind"], features: ["Grid of cards that can be flipped", "Match pairs of cards to remove them", "Timer and move counter", "Multiple difficulty levels", "Victory animation and score tracking"], learningOutcomes: ["DOM manipulation", "CSS animations and transitions", "Game logic implementation", "Randomization algorithms"] },
+  { title: "Real-time Chat Application", description: "Create a real-time chat application with rooms and user presence indicators.", skillLevel: "advanced", projectType: "application", technologies: ["react", "nextjs", "typescript"], features: ["Real-time messaging", "Create and join different chat rooms", "User authentication", "Online/offline status indicators", "Message read receipts"], learningOutcomes: ["Real-time data handling", "WebSocket implementation", "Authentication and authorization", "Advanced React patterns"] },
+  { title: "Interactive Data Visualization Dashboard", description: "Build a dashboard with interactive charts and filters to visualize complex datasets.", skillLevel: "advanced", projectType: "dashboard", technologies: ["react", "typescript", "api"], features: ["Multiple chart types (bar, line, pie, etc.)", "Interactive filters and date ranges", "Data export functionality", "Responsive design for all devices", "Drill-down capabilities for detailed analysis"], learningOutcomes: ["Data visualization libraries", "Complex state management", "Performance optimization for large datasets", "Advanced filtering and data manipulation"] },
+  { title: "Recipe Finder Application", description: "Create an app that helps users find recipes based on ingredients they have.", skillLevel: "intermediate", projectType: "application", technologies: ["vue", "api", "tailwind"], features: ["Search by ingredient, cuisine, or diet", "Filter by cooking time and difficulty", "Save favorite recipes", "Generate shopping lists", "Nutrition information display"], learningOutcomes: ["Complex API integration", "Search and filter functionality", "Vue composition API", "Form handling and validation"] },
+  { title: "Personal Finance Tracker", description: "Build an application to track personal expenses, income, and savings goals.", skillLevel: "intermediate", projectType: "dashboard", technologies: ["react", "typescript", "tailwind"], features: ["Add and categorize expenses and income", "Visualize spending patterns with charts", "Set and track savings goals", "Monthly budget planning", "Export reports as PDF or CSV"], learningOutcomes: ["Form handling and validation", "Data visualization", "Local storage or database integration", "Financial calculations"] },
+  { title: "Multiplayer Tic-Tac-Toe Game", description: "Create a real-time multiplayer tic-tac-toe game with matchmaking.", skillLevel: "intermediate", projectType: "game", technologies: ["react", "nextjs", "api"], features: ["Real-time gameplay", "Player matchmaking", "Game history and statistics", "Chat functionality", "Customizable game tokens"], learningOutcomes: ["Real-time communication", "Game state management", "Multiplayer game logic", "User authentication"] },
+  { title: "E-commerce Shopping Cart", description: "Build a fully functional shopping cart system with product catalog.", skillLevel: "intermediate", projectType: "ecommerce", technologies: ["react", "typescript", "tailwind"], features: ["Product listing with filters", "Add/remove items from cart", "Quantity adjustments", "Cart persistence across sessions", "Checkout process with form validation"], learningOutcomes: ["Complex state management", "Local storage for cart persistence", "Form validation and user input", "Price and tax calculations"] },
+  { title: "Interactive Quiz Application", description: "Create a quiz app with multiple categories, difficulty levels, and scoring.", skillLevel: "beginner", projectType: "application", technologies: ["vanilla", "api"], features: ["Multiple choice questions from various categories", "Timer for each question", "Score tracking and high scores", "Difficulty selection", "Results page with correct answers"], learningOutcomes: ["DOM manipulation", "API integration for quiz questions", "Timer functionality", "Score calculation algorithms"] },
+  { title: "Markdown Note Taking App", description: "Build a note-taking application with markdown support and organization features.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Markdown editor with preview", "Note organization with folders and tags", "Search functionality", "Dark/light mode toggle", "Export notes as PDF or markdown files"], learningOutcomes: ["Markdown parsing and rendering", "File system-like organization in frontend", "Search algorithm implementation", "Local storage or database integration"] },
+  { title: "Social Media Dashboard", description: "Create a dashboard to track and analyze social media metrics across platforms.", skillLevel: "advanced", projectType: "dashboard", technologies: ["react", "nextjs", "typescript", "api"], features: ["Integration with multiple social platforms", "Real-time follower and engagement metrics", "Historical data visualization", "Scheduled post planning", "Custom report generation"], learningOutcomes: ["OAuth and API integration", "Real-time data updates", "Complex data visualization", "Date handling and time zones"] },
+  { title: "2D Platformer Game", description: "Build a simple 2D platformer game with physics, collectibles, and levels.", skillLevel: "advanced", projectType: "game", technologies: ["vanilla", "typescript"], features: ["Character movement and jumping", "Collision detection", "Collectible items and scoring", "Multiple levels with increasing difficulty", "Enemy characters with basic AI"], learningOutcomes: ["Game physics implementation", "Canvas API for rendering", "Game loop and animation frames", "Audio handling in browsers"] },
+  { title: "E-commerce Product Catalog", description: "Create a responsive product catalog with filtering, sorting, and search capabilities.", skillLevel: "beginner", projectType: "ecommerce", technologies: ["vue", "tailwind", "api"], features: ["Grid and list view options", "Filter by category, price, and attributes", "Sort by relevance, price, and popularity", "Search with autocomplete", "Pagination or infinite scroll"], learningOutcomes: ["Data filtering and sorting algorithms", "Search functionality implementation", "Responsive grid layouts", "Vue component composition"] },
+  { title: "Habit Tracker Application", description: "Build an application to track daily habits and visualize progress over time.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "tailwind", "typescript"], features: ["Create and track daily, weekly, or monthly habits", "Streak counting and visualization", "Calendar view of completed habits", "Progress statistics and charts", "Goal setting for habit formation"], learningOutcomes: ["Complex state management", "Date manipulation and calculations", "Data visualization for progress", "Local storage or database integration"] },
+  { title: "Pomodoro Timer Application", description: "Build a customizable Pomodoro timer with task tracking and statistics.", skillLevel: "beginner", projectType: "application", technologies: ["vanilla", "tailwind"], features: ["Customizable work and break intervals", "Task list integration", "Sound notifications", "Session statistics and history", "Desktop notifications"], learningOutcomes: ["Timer implementation in JavaScript", "Local storage for settings and history", "Notification API usage", "Audio API for alerts"] },
+  { title: "Interactive Story Game", description: "Create a text-based adventure game with branching storylines and choices.", skillLevel: "intermediate", projectType: "game", technologies: ["react", "tailwind"], features: ["Branching narrative with player choices", "Character stats and inventory system", "Save and load game progress", "Animated transitions between scenes", "Multiple endings based on choices"], learningOutcomes: ["State management for complex game states", "Story tree data structures", "Save state persistence", "CSS animations and transitions"] },
+  { title: "AI Image Generator", description: "Create a web application that generates images using AI models.", skillLevel: "advanced", projectType: "application", technologies: ["react", "nextjs", "api", "typescript"], features: ["Text-to-image generation", "Image customization options", "Gallery of generated images", "Share and download functionality", "Advanced prompt builder"], learningOutcomes: ["AI API integration", "Image processing and manipulation", "Advanced state management", "Performance optimization for large files"] },
+  { title: "Code Snippet Manager", description: "Build a tool for developers to store, organize, and share code snippets.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Syntax highlighting for multiple languages", "Tags and categories for organization", "Search and filter functionality", "Copy to clipboard with one click", "Import/export functionality"], learningOutcomes: ["Code syntax highlighting libraries", "Search and filtering algorithms", "Data organization patterns", "User authentication and authorization"] },
+  { title: "Fitness Workout Builder", description: "Create a tool for designing and tracking custom workout routines.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Exercise library with animations", "Workout plan builder", "Progress tracking", "Timer and rest periods", "Custom exercise creation"], learningOutcomes: ["Animation implementation", "Timer functionality", "Data visualization", "Complex form handling"] },
+  { title: "Meditation Timer", description: "Build a customizable meditation and mindfulness app.", skillLevel: "beginner", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Custom timer settings", "Ambient sound mixer", "Guided meditation scripts", "Progress tracking", "Statistics dashboard"], learningOutcomes: ["Audio manipulation", "Timer implementation", "State management", "Data visualization"] },
+  { title: "Budget Travel Planner", description: "Create a travel planning tool that helps users find budget-friendly trips.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "api"], features: ["Flight and hotel price tracking", "Budget optimization", "Itinerary builder", "Cost splitting calculator", "Local attractions finder"], learningOutcomes: ["Third-party API integration", "Price tracking algorithms", "Geolocation services", "Data aggregation"] },
+  { title: "Personal Knowledge Base", description: "Build a tool for organizing and connecting personal knowledge and notes.", skillLevel: "intermediate", projectType: "application", technologies: ["react", "typescript", "tailwind"], features: ["Rich text editor", "Knowledge graph visualization", "Tag system", "Quick capture widget", "Cross-reference linking"], learningOutcomes: ["Graph visualization", "Text editor implementation", "Data relationships", "Search algorithms"] },
 ]
 
-// Add more project ideas
-const additionalProjectIdeas: Omit<ProjectIdea, "id">[] = [
-  {
-    title: "AI Image Generator",
-    description: "Create a web application that generates images using AI models like Stable Diffusion.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "nextjs", "api", "typescript"],
-    features: [
-      "Text-to-image generation",
-      "Image customization options",
-      "Gallery of generated images",
-      "Share and download functionality",
-      "User collections and favorites",
-      "Advanced prompt builder"
-    ],
-    learningOutcomes: [
-      "AI API integration",
-      "Image processing and manipulation",
-      "Advanced state management",
-      "Real-time updates and progress",
-      "Performance optimization for large files"
-    ]
-  },
-  {
-    title: "Code Snippet Manager",
-    description: "Build a tool for developers to store, organize, and share code snippets.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Syntax highlighting for multiple languages",
-      "Tags and categories for organization",
-      "Search and filter functionality",
-      "Copy to clipboard with one click",
-      "Public/private snippets",
-      "Import/export functionality"
-    ],
-    learningOutcomes: [
-      "Code syntax highlighting libraries",
-      "Search and filtering algorithms",
-      "Data organization patterns",
-      "User authentication and authorization",
-      "Database schema design"
-    ]
-  },
-  {
-    title: "Virtual Music Studio",
-    description: "Create an online music creation tool with virtual instruments and recording capabilities.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Virtual piano and drum pad",
-      "Audio recording and playback",
-      "Multiple instrument tracks",
-      "Effects and filters",
-      "Project save and load",
-      "Export to various formats"
-    ],
-    learningOutcomes: [
-      "Web Audio API",
-      "Real-time audio processing",
-      "Complex UI interactions",
-      "File format handling",
-      "Performance optimization"
-    ]
-  },
-  {
-    title: "Smart Home Dashboard",
-    description: "Develop a dashboard to control and monitor smart home devices.",
-    skillLevel: "advanced",
-    projectType: "dashboard",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Device status monitoring",
-      "Temperature and lighting control",
-      "Energy usage analytics",
-      "Automation rules editor",
-      "Security camera feeds",
-      "Voice commands integration"
-    ],
-    learningOutcomes: [
-      "IoT API integration",
-      "Real-time data handling",
-      "WebSocket communication",
-      "Complex state management",
-      "Security best practices"
-    ]
-  },
-  {
-    title: "Language Learning Game",
-    description: "Create an interactive game for learning new languages through fun exercises.",
-    skillLevel: "intermediate",
-    projectType: "game",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Vocabulary flashcards",
-      "Speaking and listening exercises",
-      "Progress tracking",
-      "Daily challenges",
-      "Leaderboard and achievements",
-      "Multiple language support"
-    ],
-    learningOutcomes: [
-      "Audio recording and playback",
-      "Gamification techniques",
-      "Localization and i18n",
-      "Progress tracking algorithms",
-      "Educational game design"
-    ]
-  },
-  {
-    title: "Freelance Project Manager",
-    description: "Build a tool for freelancers to manage projects, clients, and invoices.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Project timeline and milestones",
-      "Client communication portal",
-      "Time tracking",
-      "Invoice generation",
-      "Expense tracking",
-      "Contract templates"
-    ],
-    learningOutcomes: [
-      "PDF generation",
-      "Time tracking implementation",
-      "Financial calculations",
-      "Document management",
-      "Business logic implementation"
-    ]
-  },
-  {
-    title: "3D Product Configurator",
-    description: "Create a tool for customizing products in 3D with real-time preview.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "3D model viewer",
-      "Color and material customization",
-      "Part selection and configuration",
-      "Price calculation",
-      "Save and share designs",
-      "Screenshot and export options"
-    ],
-    learningOutcomes: [
-      "3D graphics libraries",
-      "WebGL basics",
-      "Complex UI state management",
-      "Performance optimization",
-      "3D model handling"
-    ]
-  },
-  {
-    title: "Social Event Planner",
-    description: "Build an application for planning and organizing social events.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Event creation and management",
-      "Guest list and RSVP system",
-      "Task assignments",
-      "Budget tracking",
-      "Venue and vendor management",
-      "Interactive timeline"
-    ],
-    learningOutcomes: [
-      "Calendar integration",
-      "Email notifications",
-      "Multi-user collaboration",
-      "Data relationships",
-      "Form validation patterns"
-    ]
-  },
-  {
-    title: "Fitness Workout Builder",
-    description: "Create a tool for designing and tracking custom workout routines.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Exercise library with animations",
-      "Workout plan builder",
-      "Progress tracking",
-      "Timer and rest periods",
-      "Custom exercise creation",
-      "Workout sharing"
-    ],
-    learningOutcomes: [
-      "Animation implementation",
-      "Timer functionality",
-      "Data visualization",
-      "Complex form handling",
-      "State persistence"
-    ]
-  },
-  {
-    title: "Virtual Art Gallery",
-    description: "Build a platform for artists to showcase their work in a virtual space.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "3D gallery environment",
-      "Artwork upload and curation",
-      "Virtual exhibition creation",
-      "Guided tours",
-      "Artist profiles",
-      "Social sharing"
-    ],
-    learningOutcomes: [
-      "3D web technologies",
-      "Image optimization",
-      "Virtual space design",
-      "User experience in 3D",
-      "Media handling"
-    ]
-  }
-]
-
-// Add more project ideas to additionalProjectIdeas
-const moreProjectIdeas: Array<Omit<ProjectIdea, "id">> = [
-  {
-    title: "Recipe AI Assistant",
-    description: "Create an AI-powered cooking assistant that helps users with recipes and meal planning.",
-    skillLevel: "advanced",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Recipe suggestions based on ingredients",
-      "Step-by-step cooking instructions",
-      "Voice commands and responses",
-      "Nutritional information calculation",
-      "Shopping list generation",
-      "Meal plan scheduling"
-    ],
-    learningOutcomes: [
-      "AI API integration",
-      "Voice recognition",
-      "Natural language processing",
-      "Complex data processing",
-      "Accessibility implementation"
-    ]
-  },
-  {
-    title: "Virtual Wardrobe",
-    description: "Build a digital wardrobe management app with outfit suggestions.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Clothing item catalog",
-      "Outfit combination suggestions",
-      "Weather-based recommendations",
-      "Packing list generator",
-      "Style statistics",
-      "Shopping wishlist"
-    ],
-    learningOutcomes: [
-      "Image management",
-      "Recommendation algorithms",
-      "Weather API integration",
-      "Data categorization",
-      "User preference learning"
-    ]
-  },
-  {
-    title: "Budget Travel Planner",
-    description: "Create a travel planning tool that helps users find budget-friendly trips.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Flight and hotel price tracking",
-      "Budget optimization",
-      "Itinerary builder",
-      "Cost splitting calculator",
-      "Local attractions finder",
-      "Travel checklist"
-    ],
-    learningOutcomes: [
-      "Third-party API integration",
-      "Price tracking algorithms",
-      "Geolocation services",
-      "Data aggregation",
-      "Complex calculations"
-    ]
-  },
-  {
-    title: "Plant Care Companion",
-    description: "Develop an app to help users care for their houseplants.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Plant identification",
-      "Care schedule reminders",
-      "Growth tracking",
-      "Disease diagnosis",
-      "Watering calculator",
-      "Light requirement monitor"
-    ],
-    learningOutcomes: [
-      "Image recognition integration",
-      "Notification systems",
-      "Calendar management",
-      "Expert system implementation",
-      "Environmental data processing"
-    ]
-  },
-  {
-    title: "Home Inventory System",
-    description: "Create a digital inventory system for home items and valuables.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Item cataloging with photos",
-      "Barcode/QR code scanning",
-      "Value tracking",
-      "Warranty management",
-      "Insurance report generation",
-      "Location mapping"
-    ],
-    learningOutcomes: [
-      "Camera API integration",
-      "Barcode scanning",
-      "PDF generation",
-      "Data organization",
-      "Search implementation"
-    ]
-  },
-  {
-    title: "Personal Knowledge Base",
-    description: "Build a tool for organizing and connecting personal knowledge and notes.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Rich text editor",
-      "Knowledge graph visualization",
-      "Tag system",
-      "Quick capture widget",
-      "Cross-reference linking",
-      "Export options"
-    ],
-    learningOutcomes: [
-      "Graph visualization",
-      "Text editor implementation",
-      "Data relationships",
-      "Search algorithms",
-      "Data visualization"
-    ]
-  },
-  {
-    title: "Digital Garden Portfolio",
-    description: "Create a modern portfolio site with digital garden concepts.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "nextjs", "tailwind"],
-    features: [
-      "Interactive project showcase",
-      "Blog with backlinks",
-      "Thought process visualization",
-      "Work timeline",
-      "Skills graph",
-      "Contact form"
-    ],
-    learningOutcomes: [
-      "SEO optimization",
-      "Graph data structures",
-      "Animation implementation",
-      "Form handling",
-      "Performance optimization"
-    ]
-  },
-  {
-    title: "Meditation Timer",
-    description: "Build a customizable meditation and mindfulness app.",
-    skillLevel: "beginner",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Custom timer settings",
-      "Ambient sound mixer",
-      "Guided meditation scripts",
-      "Progress tracking",
-      "Mood journal",
-      "Statistics dashboard"
-    ],
-    learningOutcomes: [
-      "Audio manipulation",
-      "Timer implementation",
-      "State management",
-      "Data visualization",
-      "Local storage"
-    ]
-  },
-  {
-    title: "Pet Care Tracker",
-    description: "Create an app for managing pet care and health records.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "tailwind"],
-    features: [
-      "Health record management",
-      "Vaccination scheduler",
-      "Medication reminders",
-      "Weight and growth tracking",
-      "Vet visit logger",
-      "Diet planner"
-    ],
-    learningOutcomes: [
-      "Calendar integration",
-      "Notification system",
-      "Data visualization",
-      "Form validation",
-      "PDF generation"
-    ]
-  },
-  {
-    title: "Study Group Finder",
-    description: "Build a platform for students to find and create study groups.",
-    skillLevel: "intermediate",
-    projectType: "application",
-    technologies: ["react", "typescript", "api"],
-    features: [
-      "Group matching algorithm",
-      "Virtual study room",
-      "Resource sharing",
-      "Schedule coordination",
-      "Progress tracking",
-      "Chat system"
-    ],
-    learningOutcomes: [
-      "Real-time communication",
-      "Matching algorithms",
-      "User authentication",
-      "File sharing",
-      "Calendar integration"
-    ]
-  }
-]
-
-// Update allProjectIdeas to include more ideas
-const allProjectIdeas: Array<Omit<ProjectIdea, "id">> = [...projectIdeas, ...additionalProjectIdeas, ...moreProjectIdeas]
-
+const allProjectIdeas = projectIdeas

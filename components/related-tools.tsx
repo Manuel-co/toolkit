@@ -1,108 +1,66 @@
 import Link from "next/link"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
-interface RelatedToolsProps {
-  currentTool: string
-}
+interface RelatedToolsProps { currentTool: string }
 
 const toolRelations: Record<string, string[]> = {
-  "image-compressor": ["image-converter", "image-cropper", "background-remover"],
-  "image-converter": ["image-compressor", "image-cropper", "image-to-favicon"],
-  "image-cropper": ["image-compressor", "image-converter", "background-remover"],
-  "background-remover": ["image-compressor", "image-cropper", "image-converter"],
-  "color-extractor": ["color-palette-generator", "gradient-generator"],
-  "gradient-generator": ["color-palette-generator", "color-extractor"],
+  "image-compressor":        ["image-converter", "image-cropper", "background-remover"],
+  "image-converter":         ["image-compressor", "image-cropper", "image-to-favicon"],
+  "image-cropper":           ["image-compressor", "image-converter", "background-remover"],
+  "background-remover":      ["image-compressor", "image-cropper", "image-converter"],
+  "color-extractor":         ["color-palette-generator", "gradient-generator"],
+  "gradient-generator":      ["color-palette-generator", "color-extractor"],
   "color-palette-generator": ["color-extractor", "gradient-generator"],
-  "qr-code-generator": ["image-converter", "image-compressor"],
-  "password-generator": ["project-idea-generator"],
-  "project-idea-generator": ["password-generator"],
-  "text-extractor": ["pdf-converter", "image-converter"],
-  "pdf-converter": ["text-extractor", "image-converter"],
-  "image-to-favicon": ["image-converter", "image-compressor"],
+  "qr-code-generator":       ["image-converter", "image-compressor", "text-to-pdf"],
+  "password-generator":      ["qr-code-generator", "url-shortener"],
+  "text-extractor":          ["text-to-pdf", "markdown-editor"],
+  "text-to-pdf":             ["text-extractor", "markdown-editor"],
+  "markdown-editor":         ["text-to-pdf", "text-extractor", "code-snippet-manager"],
+  "image-to-favicon":        ["image-converter", "image-compressor"],
+  "url-shortener":           ["qr-code-generator", "password-generator"],
+  "code-snippet-manager":    ["markdown-editor", "text-extractor"],
 }
 
 const toolDetails: Record<string, { title: string; description: string }> = {
-  "image-compressor": {
-    title: "Image Compressor",
-    description: "Compress images without losing quality",
-  },
-  "image-converter": {
-    title: "Image Converter",
-    description: "Convert images between different formats",
-  },
-  "image-cropper": {
-    title: "Image Cropper",
-    description: "Crop and resize images to your desired dimensions",
-  },
-  "background-remover": {
-    title: "Background Remover",
-    description: "Remove backgrounds from images with a single click",
-  },
-  "color-extractor": {
-    title: "Color Extractor",
-    description: "Extract color palettes from any image",
-  },
-  "gradient-generator": {
-    title: "Gradient Generator",
-    description: "Create beautiful CSS gradients for your website",
-  },
-  "color-palette-generator": {
-    title: "Color Palette Generator",
-    description: "Create harmonious color palettes for your designs",
-  },
-  "qr-code-generator": {
-    title: "QR Code Generator",
-    description: "Generate QR codes for URLs, text, and more",
-  },
-  "password-generator": {
-    title: "Password Generator",
-    description: "Generate secure, random passwords",
-  },
-  "project-idea-generator": {
-    title: "Project Idea Generator",
-    description: "Get inspiration for your next front-end project",
-  },
-  "text-extractor": {
-    title: "Text Extractor",
-    description: "Extract text from images using OCR technology",
-  },
-  "pdf-converter": {
-    title: "PDF Converter",
-    description: "Convert PDF files to images or text",
-  },
-  "image-to-favicon": {
-    title: "Image to Favicon",
-    description: "Convert any image to a favicon for your website",
-  },
+  "image-compressor":        { title: "Image Compressor",    description: "Compress images without quality loss" },
+  "image-converter":         { title: "Image Converter",     description: "Convert between image formats" },
+  "image-cropper":           { title: "Image Cropper",       description: "Crop & resize images precisely" },
+  "background-remover":      { title: "Background Remover",  description: "Remove image backgrounds with AI" },
+  "color-extractor":         { title: "Color Extractor",     description: "Extract palettes from any image" },
+  "gradient-generator":      { title: "Gradient Generator",  description: "Build beautiful CSS gradients" },
+  "color-palette-generator": { title: "Color Palette",       description: "Generate harmonious color palettes" },
+  "qr-code-generator":       { title: "QR Code Generator",   description: "Generate QR codes instantly" },
+  "password-generator":      { title: "Password Generator",  description: "Secure random passwords" },
+  "text-extractor":          { title: "Text Extractor",      description: "Pull text from files instantly" },
+  "text-to-pdf":             { title: "Text to PDF",         description: "Export rich documents as PDF" },
+  "markdown-editor":         { title: "Markdown Editor",     description: "Write & preview markdown live" },
+  "image-to-favicon":        { title: "Image to Favicon",    description: "Convert images to favicons" },
+  "url-shortener":           { title: "URL Shortener",       description: "Create short, shareable links" },
+  "code-snippet-manager":    { title: "Code Snippets",       description: "Store & organise code snippets" },
 }
 
 export function RelatedTools({ currentTool }: RelatedToolsProps) {
-  const relatedTools = toolRelations[currentTool] || []
-
-  if (relatedTools.length === 0) return null
+  const related = (toolRelations[currentTool] || []).filter(t => toolDetails[t])
+  if (related.length === 0) return null
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold">Related Tools</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {relatedTools.map((tool) => (
-          <Card key={tool}>
-            <CardHeader>
-              <CardTitle className="text-lg">{toolDetails[tool].title}</CardTitle>
-              <CardDescription>{toolDetails[tool].description}</CardDescription>
-              <Link href={`/tools/${tool}`} className="mt-2">
-                <Button variant="outline" size="sm">
-                  Try it
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardHeader>
-          </Card>
+    <div className="mt-12 space-y-4 border-t border-white/[0.06] pt-10">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#4D9FFF]">Related tools</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {related.map(slug => (
+          <Link
+            key={slug}
+            href={`/tools/${slug}`}
+            className="group flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 transition-all duration-300 hover:border-white/[0.16] hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(77,159,255,0.06)]"
+          >
+            <div>
+              <p className="text-sm font-semibold text-[#E5E5E5]">{toolDetails[slug].title}</p>
+              <p className="mt-0.5 text-xs text-[#A0A0A0]">{toolDetails[slug].description}</p>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 ml-3 text-[#A0A0A0] transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-[#4D9FFF]" />
+          </Link>
         ))}
       </div>
     </div>
   )
 }
-

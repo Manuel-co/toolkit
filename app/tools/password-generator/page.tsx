@@ -1,190 +1,145 @@
 "use client"
 
 import { useState } from "react"
-import { ToolResult } from "@/components/tool-result"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { Key, Check, Copy } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ToolHeader } from "@/components/tool-header"
+import { Key, Copy, Check, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
-import { Slider } from "@/components/ui/slider"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
+
+const CHARSET = {
+  uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  lowercase: "abcdefghijklmnopqrstuvwxyz",
+  numbers: "0123456789",
+  symbols: "!@#$%^&*()_+-=[]{}|;:,.<>?",
+}
+
+function strengthLabel(pw: string): { label: string; color: string; width: string } {
+  if (!pw) return { label: "", color: "bg-white/10", width: "w-0" }
+  let score = 0
+  if (pw.length >= 12) score++
+  if (pw.length >= 20) score++
+  if (/[A-Z]/.test(pw)) score++
+  if (/[0-9]/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  if (score <= 2) return { label: "Weak", color: "bg-red-500", width: "w-1/4" }
+  if (score <= 3) return { label: "Fair", color: "bg-yellow-500", width: "w-2/4" }
+  if (score <= 4) return { label: "Strong", color: "bg-green-500", width: "w-3/4" }
+  return { label: "Very Strong", color: "bg-[#4D9FFF]", width: "w-full" }
+}
 
 export default function PasswordGeneratorPage() {
-  const [password, setPassword] = useState<string>("")
-  const [length, setLength] = useState<number>(16)
-  const [options, setOptions] = useState({
-    uppercase: true,
-    lowercase: true,
-    numbers: true,
-    symbols: true,
-  })
+  const [password, setPassword] = useState("")
+  const [length, setLength] = useState(16)
+  const [copied, setCopied] = useState(false)
+  const [options, setOptions] = useState({ uppercase: true, lowercase: true, numbers: true, symbols: true })
 
-  const generatePassword = () => {
-    const charset = {
-      uppercase: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      lowercase: "abcdefghijklmnopqrstuvwxyz",
-      numbers: "0123456789",
-      symbols: "!@#$%^&*()_+-=[]{}|;:,.<>?",
-    }
-
-    let characters = ""
-    if (options.uppercase) characters += charset.uppercase
-    if (options.lowercase) characters += charset.lowercase
-    if (options.numbers) characters += charset.numbers
-    if (options.symbols) characters += charset.symbols
-
-    if (characters === "") {
-      toast.error("Please select at least one character type")
-      return
-    }
-
+  const generate = () => {
+    let chars = ""
+    if (options.uppercase) chars += CHARSET.uppercase
+    if (options.lowercase) chars += CHARSET.lowercase
+    if (options.numbers) chars += CHARSET.numbers
+    if (options.symbols) chars += CHARSET.symbols
+    if (!chars) { toast.error("Select at least one character type"); return }
     let result = ""
-    const charactersLength = characters.length
-    for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength))
-    }
-
+    for (let i = 0; i < length; i++) result += chars[Math.floor(Math.random() * chars.length)]
     setPassword(result)
-    toast.success("Password generated successfully!")
   }
 
   const handleCopy = async () => {
-    if (!password) {
-      toast.error("Generate a password first")
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(password)
-      toast.success("Password copied to clipboard!")
-    } catch (error) {
-      toast.error("Failed to copy password")
-    }
+    if (!password) { toast.error("Generate a password first"); return }
+    await navigator.clipboard.writeText(password)
+    setCopied(true); toast.success("Copied!")
+    setTimeout(() => setCopied(false), 2000)
   }
+
+  const toggle = (key: keyof typeof options) => setOptions(p => ({ ...p, [key]: !p[key] }))
+  const strength = strengthLabel(password)
+
+  const checkboxClass = (active: boolean) =>
+    `flex items-center gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-all text-sm ${
+      active ? "border-[#4D9FFF]/40 bg-[#4D9FFF]/[0.06] text-white" : "border-white/[0.08] bg-white/[0.02] text-[#A0A0A0] hover:border-white/20"
+    }`
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Key className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Password Generator</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Generate strong, secure passwords with customizable options. Perfect for creating unique passwords for your accounts.
-        </p>
-      </div>
-
-      <Alert>
-        <Check className="h-4 w-4" />
-        <AlertTitle>Secure Generation</AlertTitle>
-        <AlertDescription>
-          All passwords are generated locally in your browser. Nothing is stored or transmitted over the internet.
-        </AlertDescription>
-      </Alert>
+      <ToolHeader icon={Key} label="Security" title="Password Generator" description="Generate strong, secure passwords locally in your browser. Nothing is stored or transmitted." />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Password Length</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label>Length: {length} characters</Label>
-              </div>
-              <Slider
-                value={[length]}
-                onValueChange={(value) => setLength(value[0])}
-                min={8}
-                max={32}
-                step={1}
-                className="w-full"
+        {/* Controls */}
+        <div className="space-y-5">
+          {/* Length */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Length</p>
+            <div className="flex items-center gap-4">
+              <input
+                type="range" min={8} max={64} step={1} value={length}
+                onChange={e => setLength(+e.target.value)}
+                className="flex-1 accent-[#4D9FFF]"
               />
+              <span className="w-10 text-right text-lg font-bold text-white tabular-nums">{length}</span>
+            </div>
+            <div className="flex justify-between text-[10px] text-[#A0A0A0]/50">
+              <span>8</span><span>64</span>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Character Types</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="uppercase"
-                  checked={options.uppercase}
-                  onCheckedChange={(checked) =>
-                    setOptions((prev) => ({ ...prev, uppercase: checked === true }))
-                  }
-                />
-                <Label htmlFor="uppercase">Uppercase (A-Z)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="lowercase"
-                  checked={options.lowercase}
-                  onCheckedChange={(checked) =>
-                    setOptions((prev) => ({ ...prev, lowercase: checked === true }))
-                  }
-                />
-                <Label htmlFor="lowercase">Lowercase (a-z)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="numbers"
-                  checked={options.numbers}
-                  onCheckedChange={(checked) =>
-                    setOptions((prev) => ({ ...prev, numbers: checked === true }))
-                  }
-                />
-                <Label htmlFor="numbers">Numbers (0-9)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="symbols"
-                  checked={options.symbols}
-                  onCheckedChange={(checked) =>
-                    setOptions((prev) => ({ ...prev, symbols: checked === true }))
-                  }
-                />
-                <Label htmlFor="symbols">Symbols (!@#$...)</Label>
-              </div>
+          {/* Character types */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Character Types</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(options) as (keyof typeof options)[]).map(key => (
+                <label key={key} className={checkboxClass(options[key])}>
+                  <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-all ${options[key] ? "border-[#4D9FFF] bg-[#4D9FFF]" : "border-white/20 bg-transparent"}`}>
+                    {options[key] && <Check className="h-2.5 w-2.5 text-black" />}
+                  </div>
+                  <input type="checkbox" className="sr-only" checked={options[key]} onChange={() => toggle(key)} />
+                  <span className="capitalize">{key}</span>
+                </label>
+              ))}
             </div>
           </div>
 
-          <Button onClick={generatePassword} className="w-full">
-            Generate Password
-          </Button>
+          <button onClick={generate} className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] flex items-center justify-center gap-2">
+            <RefreshCw className="h-4 w-4" />Generate Password
+          </button>
         </div>
 
+        {/* Result */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Result</h2>
-          {password ? (
-            <div className="space-y-4">
-              <div className="p-4 border rounded-lg font-mono break-all">
-                {password}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4 min-h-[200px] flex flex-col justify-center">
+            {password ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Generated Password</p>
+                <div className="rounded-lg border border-white/[0.08] bg-black/30 px-4 py-3 font-mono text-sm text-white break-all leading-relaxed">
+                  {password}
+                </div>
+                {/* Strength bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#A0A0A0]">Strength</span>
+                    <span className="text-[#E5E5E5]">{strength.label}</span>
+                  </div>
+                  <div className="h-1 w-full rounded-full bg-white/[0.06]">
+                    <div className={`h-1 rounded-full transition-all duration-500 ${strength.color} ${strength.width}`} />
+                  </div>
+                </div>
+                <button onClick={handleCopy} className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-[#E5E5E5] transition-all hover:border-white/20 hover:text-white flex items-center justify-center gap-2">
+                  {copied ? <><Check className="h-4 w-4 text-green-400" />Copied!</> : <><Copy className="h-4 w-4" />Copy to Clipboard</>}
+                </button>
+              </>
+            ) : (
+              <div className="text-center space-y-2">
+                <Key className="h-10 w-10 text-white/10 mx-auto" />
+                <p className="text-sm text-[#A0A0A0]">Click Generate to create a password</p>
               </div>
-              <Button onClick={handleCopy} className="w-full">
-                <Copy className="w-4 h-4 mr-2" />
-                Copy to Clipboard
-              </Button>
-            </div>
-          ) : (
-            <div className="border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">
-                Click "Generate Password" to create a new password.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">How to use</h2>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          <li>Adjust the password length using the slider (8-32 characters)</li>
-          <li>Select the types of characters to include</li>
-          <li>Click "Generate Password" to create a new password</li>
-          <li>Click "Copy to Clipboard" to copy the generated password</li>
-          <li>Generate as many passwords as you need</li>
-        </ol>
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Security Note</p>
+            <p className="text-xs text-[#A0A0A0]/70 leading-relaxed">All passwords are generated locally in your browser. Nothing is stored or transmitted over the internet.</p>
+          </div>
+        </div>
       </div>
 
       <RelatedTools currentTool="password-generator" />

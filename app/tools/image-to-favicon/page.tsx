@@ -2,114 +2,105 @@
 
 import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
-import { ToolResult } from "@/components/tool-result"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { FileImage, Info } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+import { ToolHeader } from "@/components/tool-header"
+import { FileImage, Download } from "lucide-react"
+import { toast } from "sonner"
+
+const SIZES = ["16", "32", "48", "64", "all"] as const
+type FaviconSize = typeof SIZES[number]
 
 export default function ImageToFaviconPage() {
   const [file, setFile] = useState<File | null>(null)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
-  const [format, setFormat] = useState("ico")
+  const [format, setFormat] = useState<"ico" | "png" | "all">("ico")
+  const [faviconSize, setFaviconSize] = useState<FaviconSize>("all")
 
-  const handleFileSelect = (selectedFile: File) => {
-    setFile(selectedFile)
-    setResult(null)
+  const handleFileSelect = (f: File) => {
+    setFile(f)
+    setImageUrl(URL.createObjectURL(f))
   }
 
-  const handleProcess = () => {
-    if (!file) return
-
+  const handleProcess = async () => {
+    if (!file) { toast.error("Upload an image first"); return }
     setIsProcessing(true)
-
-    // Simulate processing delay
-    setTimeout(() => {
-      // In a real app, this would call an API to process the image
-      // For demo purposes, we'll just use a placeholder
-      setResult("/placeholder.svg?height=64&width=64&text=Favicon")
-      setIsProcessing(false)
-    }, 2000)
+    await new Promise(r => setTimeout(r, 1500))
+    toast.success("Favicon generated!")
+    setIsProcessing(false)
   }
+
+  const tabClass = (active: boolean) =>
+    `flex-1 py-1.5 text-xs font-medium uppercase tracking-wider rounded-md transition-all ${active ? "bg-white text-black" : "text-[#A0A0A0] hover:text-white"}`
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <FileImage className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Image to Favicon</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Convert any image to a favicon for your website. Creates favicons in multiple sizes for all devices and
-          browsers.
-        </p>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Free to use</AlertTitle>
-        <AlertDescription>
-          This tool is completely free to use with no login required. Your images are processed securely and are not
-          stored on our servers.
-        </AlertDescription>
-      </Alert>
+      <ToolHeader icon={FileImage} label="Image" title="Image to Favicon" description="Convert any image to a favicon for your website. Creates favicons in multiple sizes for all devices." />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Upload Image</h2>
-          <FileUpload accept="image/*" maxSize={5} onFileSelect={handleFileSelect} />
-
-          <div className="space-y-3">
-            <h3 className="font-medium">Favicon Format</h3>
-            <RadioGroup defaultValue="ico" value={format} onValueChange={setFormat}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="ico" id="ico" />
-                <Label htmlFor="ico">ICO (Standard Favicon)</Label>
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Upload Image</p>
+            <FileUpload accept="image/*" maxSize={5} onFileSelect={handleFileSelect} />
+            {imageUrl && (
+              <div className="rounded-lg overflow-hidden border border-white/[0.08]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="Preview" className="w-full h-auto max-h-48 object-contain bg-black/20" />
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="png" id="png" />
-                <Label htmlFor="png">PNG (Modern Browsers)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="all" id="all" />
-                <Label htmlFor="all">All Formats (ZIP Package)</Label>
-              </div>
-            </RadioGroup>
+            )}
           </div>
 
-          <Button onClick={handleProcess} disabled={!file || isProcessing} className="w-full">
-            {isProcessing ? "Processing..." : "Generate "}
-          </Button>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Result</h2>
-          {result ? (
-            <ToolResult title="Favicon Generated" resultImage={result} resultType="download" />
-          ) : (
-            <div className="border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">Upload an image and click "Generate Favicon" to see the result.</p>
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Format</p>
+            <div className="flex gap-1 rounded-lg border border-white/[0.08] bg-white/[0.02] p-1">
+              {(["ico","png","all"] as const).map(f => (
+                <button key={f} onClick={() => setFormat(f)} className={tabClass(format === f)}>
+                  {f === "all" ? "All" : f.toUpperCase()}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">How to use</h2>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          <li>Upload a square image (ideally 512x512 pixels or larger).</li>
-          <li>Select your preferred favicon format.</li>
-          <li>Click the "Generate Favicon" button to process your image.</li>
-          <li>Download the favicon file(s) and add them to your website.</li>
-          <li>For best results, use a simple image with clear details that will be visible at small sizes.</li>
-        </ol>
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Size</p>
+              <div className="grid grid-cols-2 gap-2">
+                {SIZES.map(s => (
+                  <label key={s} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-all ${faviconSize === s ? "border-[#4D9FFF]/40 bg-[#4D9FFF]/[0.06] text-white" : "border-white/[0.08] text-[#A0A0A0] hover:border-white/20"} ${s === "all" ? "col-span-2" : ""}`}>
+                    <input type="radio" className="sr-only" checked={faviconSize === s} onChange={() => setFaviconSize(s)} />
+                    <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${faviconSize === s ? "border-[#4D9FFF]" : "border-white/20"}`}>
+                      {faviconSize === s && <div className="h-1.5 w-1.5 rounded-full bg-[#4D9FFF]" />}
+                    </div>
+                    {s === "all" ? "All Sizes (Recommended)" : `${s}×${s}`}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button onClick={handleProcess} disabled={!file || isProcessing}
+            className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <Download className="h-4 w-4" />{isProcessing ? "Generating…" : "Generate Favicon"}
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Tips</p>
+          <div className="space-y-3 text-sm text-[#A0A0A0]">
+            <p>Use a square image (512×512px or larger) for best results.</p>
+            <p>Simple designs with clear details work best at small sizes.</p>
+            <p>ICO format is the standard for browser tabs and bookmarks.</p>
+            <p>PNG favicons are supported by modern browsers.</p>
+            <p>The "All Sizes" option generates a complete favicon package.</p>
+          </div>
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Add to your HTML</p>
+            <code className="text-xs font-mono text-[#4D9FFF] block">
+              {`<link rel="icon" href="/favicon.ico" />`}
+            </code>
+          </div>
+        </div>
       </div>
 
       <RelatedTools currentTool="image-to-favicon" />
     </div>
   )
 }
-

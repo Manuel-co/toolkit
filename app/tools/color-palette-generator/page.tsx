@@ -2,307 +2,156 @@
 
 import { useState, useEffect } from "react"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Copy, Check, RefreshCw, Palette, Info } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Slider } from "@/components/ui/slider"
+import { ToolHeader } from "@/components/tool-header"
+import { Copy, RefreshCw, Palette, X } from "lucide-react"
+import { toast } from "sonner"
 
-interface Color {
-  hex: string
-  rgb: string
-  hsl: string
+interface Color { hex: string; rgb: string; hsl: string }
+interface SavedPalette { id: string; name: string; colors: Color[]; createdAt: string }
+
+function hslToHex(h: number, s: number, l: number) {
+  s /= 100; l /= 100
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1))).toString(16).padStart(2, "0") }
+  return `#${f(0)}${f(8)}${f(4)}`
 }
-
-interface Palette {
-  id: string
-  name: string
-  colors: Color[]
-  createdAt: string
+function hslToRgb(h: number, s: number, l: number) {
+  s /= 100; l /= 100
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1))) }
+  return `rgb(${f(0)}, ${f(8)}, ${f(4)})`
 }
 
 export default function ColorPaletteGeneratorPage() {
-  const [palettes, setPalettes] = useState<Palette[]>([])
+  const [palettes, setPalettes] = useState<SavedPalette[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
-  const [currentPalette, setCurrentPalette] = useState<Color[]>([])
-  const [hue, setHue] = useState(0)
-  const [saturation, setSaturation] = useState(50)
-  const [lightness, setLightness] = useState(50)
+  const [current, setCurrent] = useState<Color[]>([])
   const [paletteName, setPaletteName] = useState("")
 
-  // Load palettes from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('colorPalettes')
-    if (saved) {
-      setPalettes(JSON.parse(saved))
-    }
+    const saved = localStorage.getItem("colorPalettes")
+    if (saved) setPalettes(JSON.parse(saved))
     setIsLoading(false)
-    generateNewPalette()
+    generateNew()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Save palettes to localStorage
   useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('colorPalettes', JSON.stringify(palettes))
-    }
+    if (!isLoading) localStorage.setItem("colorPalettes", JSON.stringify(palettes))
   }, [palettes, isLoading])
 
-  // Convert HSL to Hex
-  const hslToHex = (h: number, s: number, l: number): string => {
-    s /= 100
-    l /= 100
-    const a = s * Math.min(l, 1 - l)
-    const f = (n: number) => {
-      const k = (n + h / 30) % 12
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
-      return Math.round(255 * color).toString(16).padStart(2, '0')
-    }
-    return `#${f(0)}${f(8)}${f(4)}`
-  }
-
-  // Convert HSL to RGB
-  const hslToRgb = (h: number, s: number, l: number): string => {
-    s /= 100
-    l /= 100
-    const a = s * Math.min(l, 1 - l)
-    const f = (n: number) => {
-      const k = (n + h / 30) % 12
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
-      return Math.round(255 * color)
-    }
-    return `rgb(${f(0)}, ${f(8)}, ${f(4)})`
-  }
-
-  // Generate a new color palette
-  const generateNewPalette = () => {
-    const baseHue = Math.floor(Math.random() * 360)
-    const newPalette: Color[] = []
-
-    for (let i = 0; i < 5; i++) {
-      const h = (baseHue + i * 72) % 360
+  const generateNew = () => {
+    const base = Math.floor(Math.random() * 360)
+    setCurrent(Array.from({ length: 5 }, (_, i) => {
+      const h = (base + i * 72) % 360
       const s = Math.floor(Math.random() * 30) + 60
       const l = Math.floor(Math.random() * 20) + 40
-
-      newPalette.push({
-        hex: hslToHex(h, s, l),
-        rgb: hslToRgb(h, s, l),
-        hsl: `hsl(${h}, ${s}%, ${l}%)`,
-      })
-    }
-
-    setCurrentPalette(newPalette)
+      return { hex: hslToHex(h, s, l), rgb: hslToRgb(h, s, l), hsl: `hsl(${h}, ${s}%, ${l}%)` }
+    }))
   }
 
-  // Save current palette
   const savePalette = () => {
     if (!paletteName.trim()) return
-
-    const palette: Palette = {
-      id: Date.now().toString(),
-      name: paletteName,
-      colors: currentPalette,
-      createdAt: new Date().toISOString(),
-    }
-
-    setPalettes([...palettes, palette])
-    setPaletteName("")
+    setPalettes(p => [...p, { id: Date.now().toString(), name: paletteName, colors: current, createdAt: new Date().toISOString() }])
+    setPaletteName(""); toast.success("Palette saved!")
   }
 
-  // Copy color to clipboard
-  const copyColor = (color: string) => {
-    navigator.clipboard.writeText(color)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  // Delete palette
-  const deletePalette = (id: string) => {
-    setPalettes(palettes.filter(palette => palette.id !== id))
-  }
+  const copy = (text: string) => { navigator.clipboard.writeText(text); toast.success(`Copied ${text}!`) }
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Palette className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Color Palette Generator</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Generate beautiful color palettes for your projects. Save your favorite combinations and copy color values in different formats.
-        </p>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Free to use</AlertTitle>
-        <AlertDescription>
-          This tool is completely free to use with no login required. Your palettes are saved locally in your browser.
-        </AlertDescription>
-      </Alert>
+      <ToolHeader icon={Palette} label="Color" title="Color Palette Generator" description="Generate beautiful color palettes for your projects. Save favorites and copy in multiple formats." />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate New Palette</CardTitle>
-              <CardDescription>Create a new color palette with complementary colors.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Hue</Label>
-                <Slider
-                  value={[hue]}
-                  onValueChange={(value) => setHue(value[0])}
-                  max={360}
-                  step={1}
-                />
-              </div>
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Generate Palette</p>
 
-              <div className="space-y-2">
-                <Label>Saturation</Label>
-                <Slider
-                  value={[saturation]}
-                  onValueChange={(value) => setSaturation(value[0])}
-                  max={100}
-                  step={1}
-                />
-              </div>
+            {/* Color swatches */}
+            <div className="grid grid-cols-5 gap-2">
+              {current.map((color, i) => (
+                <button key={i} onClick={() => copy(color.hex)} title={color.hex}
+                  className="group relative aspect-square rounded-xl border border-white/[0.06] transition-transform hover:scale-105"
+                  style={{ backgroundColor: color.hex }}>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/50 rounded-xl transition-opacity">
+                    <span className="text-[9px] font-mono text-white">{color.hex}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
 
-              <div className="space-y-2">
-                <Label>Lightness</Label>
-                <Slider
-                  value={[lightness]}
-                  onValueChange={(value) => setLightness(value[0])}
-                  max={100}
-                  step={1}
-                />
-              </div>
+            <button onClick={generateNew}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-[#E5E5E5] transition-all hover:border-white/20 hover:text-white">
+              <RefreshCw className="h-4 w-4" />Generate New
+            </button>
 
-              <div className="space-y-2">
-                <Label htmlFor="paletteName">Palette Name</Label>
-                <Input
-                  id="paletteName"
-                  value={paletteName}
-                  onChange={(e) => setPaletteName(e.target.value)}
-                  placeholder="Enter a name for your palette"
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex gap-2">
-              <Button onClick={generateNewPalette} className="flex-1">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Generate New
-              </Button>
-              <Button onClick={savePalette} className="flex-1" disabled={!paletteName.trim()}>
-                <Palette className="mr-2 h-4 w-4" />
-                Save Palette
-              </Button>
-            </CardFooter>
-          </Card>
+            <div className="flex gap-2">
+              <input placeholder="Palette name" value={paletteName} onChange={e => setPaletteName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && savePalette()}
+                className="flex-1 h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white placeholder:text-[#A0A0A0]/40 outline-none focus:border-[#4D9FFF]/40 transition-colors" />
+              <button onClick={savePalette} disabled={!paletteName.trim()}
+                className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed">
+                Save
+              </button>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-5 gap-2">
-            {currentPalette.map((color, index) => (
-              <div
-                key={index}
-                className="aspect-square rounded-lg cursor-pointer relative group"
-                style={{ backgroundColor: color.hex }}
-                onClick={() => copyColor(color.hex)}
-              >
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
-                <div className="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                  {color.hex}
-                </div>
+          {/* Current palette details */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-2">
+            {current.map((c, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg border border-white/[0.06] shrink-0" style={{ backgroundColor: c.hex }} />
+                <span className="font-mono text-xs text-[#E5E5E5] flex-1">{c.hex}</span>
+                <span className="text-xs text-[#A0A0A0]">{c.rgb}</span>
+                <button onClick={() => copy(c.hex)} className="text-[#A0A0A0] hover:text-white transition-colors"><Copy className="h-3.5 w-3.5" /></button>
               </div>
             ))}
           </div>
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Saved Palettes</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Saved Palettes</p>
           {isLoading ? (
-            <div className="border rounded-lg p-8 text-center">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading palettes...</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+              <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white rounded-full mx-auto" />
             </div>
           ) : palettes.length > 0 ? (
-            <div className="space-y-4">
-              {palettes.map((palette) => (
-                <Card key={palette.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{palette.name}</CardTitle>
-                        <CardDescription className="mt-2">
-                          Created {new Date(palette.createdAt).toLocaleDateString()}
-                        </CardDescription>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => deletePalette(palette.id)}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-x"
-                        >
-                          <path d="M18 6 6 18" />
-                          <path d="m6 6 12 12" />
-                        </svg>
-                      </Button>
+            <div className="space-y-3">
+              {palettes.map(p => (
+                <div key={p.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-[#E5E5E5]">{p.name}</p>
+                      <p className="text-xs text-[#A0A0A0]/60">{new Date(p.createdAt).toLocaleDateString()}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-5 gap-2">
-                      {palette.colors.map((color, index) => (
-                        <div
-                          key={index}
-                          className="aspect-square rounded-lg cursor-pointer relative group"
-                          style={{ backgroundColor: color.hex }}
-                          onClick={() => copyColor(color.hex)}
-                        >
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                            {color.hex}
-                          </div>
+                    <button onClick={() => setPalettes(prev => prev.filter(x => x.id !== p.id))} className="text-[#A0A0A0] hover:text-white transition-colors">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {p.colors.map((c, i) => (
+                      <button key={i} onClick={() => copy(c.hex)} title={c.hex}
+                        className="group relative aspect-square rounded-lg border border-white/[0.06] transition-transform hover:scale-105"
+                        style={{ backgroundColor: c.hex }}>
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/50 rounded-lg transition-opacity">
+                          <span className="text-[9px] font-mono text-white">{c.hex}</span>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <div className="border rounded-lg p-8 text-center">
-              <Palette className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">
-                No palettes saved yet. Generate a palette and save it to get started!
-              </p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center space-y-2">
+              <Palette className="h-8 w-8 text-white/10 mx-auto" />
+              <p className="text-sm text-[#A0A0A0]">No palettes saved yet</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Color Theory Tips</h2>
-        <ul className="list-disc list-inside space-y-2 ml-4">
-          <li>Use complementary colors (opposite on the color wheel) for high contrast.</li>
-          <li>Analogous colors (next to each other) create harmonious designs.</li>
-          <li>Triadic colors (equally spaced) provide balanced contrast.</li>
-          <li>Consider color accessibility and contrast ratios.</li>
-          <li>Use color to create visual hierarchy and guide attention.</li>
-          <li>Test your palette in both light and dark modes.</li>
-        </ul>
-      </div>
-
       <RelatedTools currentTool="color-palette-generator" />
     </div>
   )
-} 
+}

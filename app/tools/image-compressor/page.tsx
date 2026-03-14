@@ -3,14 +3,9 @@
 import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { Image as ImageIcon, Download, Info, Settings2, ArrowRight } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ToolHeader } from "@/components/tool-header"
+import { Image as ImageIcon, Download, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Progress } from "@/components/ui/progress"
 
 interface CompressionResult {
   url: string
@@ -18,287 +13,132 @@ interface CompressionResult {
   compressedSize: number
 }
 
+function formatBytes(bytes: number) {
+  if (bytes === 0) return "0 B"
+  const k = 1024, sizes = ["B","KB","MB","GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+}
+
 export default function ImageCompressorPage() {
   const [file, setFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<CompressionResult | null>(null)
-  const [settings, setSettings] = useState({
-    quality: 80,
-    maxWidth: 1920,
-    preserveQuality: true
-  })
+  const [quality, setQuality] = useState(80)
+  const [maxWidth, setMaxWidth] = useState(1920)
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const calculateSavings = (original: number, compressed: number): string => {
-    const saving = ((original - compressed) / original) * 100
-    return saving.toFixed(1)
-  }
-
-  const compressImage = (image: HTMLImageElement, canvas: HTMLCanvasElement): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const ctx = canvas.getContext('2d')!
-      
-      // Calculate new dimensions while maintaining aspect ratio
-      let width = image.width
-      let height = image.height
-      
-      if (width > settings.maxWidth) {
-        height = (settings.maxWidth * height) / width
-        width = settings.maxWidth
-      }
-
-      canvas.width = width
-      canvas.height = height
-      
-      // Draw and compress
-      ctx.drawImage(image, 0, 0, width, height)
-      
-      canvas.toBlob(
-        (blob) => resolve(blob!),
-        'image/jpeg',
-        settings.quality / 100
-      )
-    })
-  }
-
-  const handleFileSelect = async (selectedFile: File) => {
+  const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile)
     setImageUrl(URL.createObjectURL(selectedFile))
     setResult(null)
   }
 
   const handleCompress = async () => {
-    if (!file || !imageUrl) {
-      toast.error("Please upload an image first")
-      return
-    }
-
+    if (!file || !imageUrl) { toast.error("Upload an image first"); return }
     setIsProcessing(true)
-
     try {
-      // Create image element
       const img = new Image()
       img.src = imageUrl
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-      })
-
-      // Create canvas for compression
-      const canvas = document.createElement('canvas')
-      const compressedBlob = await compressImage(img, canvas)
-      const compressedUrl = URL.createObjectURL(compressedBlob)
-
-      setResult({
-        url: compressedUrl,
-        originalSize: file.size,
-        compressedSize: compressedBlob.size
-      })
-
-      toast.success("Image compressed successfully!")
-    } catch (error) {
-      console.error("Compression error:", error)
-      toast.error("Failed to compress image")
-    } finally {
-      setIsProcessing(false)
-    }
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej })
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")!
+      let w = img.width, h = img.height
+      if (w > maxWidth) { h = (maxWidth * h) / w; w = maxWidth }
+      canvas.width = w; canvas.height = h
+      ctx.drawImage(img, 0, 0, w, h)
+      const blob = await new Promise<Blob>(res => canvas.toBlob(b => res(b!), "image/jpeg", quality / 100))
+      setResult({ url: URL.createObjectURL(blob), originalSize: file.size, compressedSize: blob.size })
+      toast.success("Compressed!")
+    } catch { toast.error("Failed to compress") }
+    finally { setIsProcessing(false) }
   }
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!result) return
-
-    const link = document.createElement('a')
-    link.href = result.url
-    link.download = `compressed_${file!.name}`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const a = document.createElement("a"); a.href = result.url; a.download = `compressed_${file!.name}`; a.click()
   }
+
+  const savings = result ? (((result.originalSize - result.compressedSize) / result.originalSize) * 100).toFixed(1) : null
 
   return (
     <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <ImageIcon className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Image Compressor</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Compress your images while maintaining visual quality. Perfect for web images and reducing file size.
-        </p>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Local Processing</AlertTitle>
-        <AlertDescription>
-          All compression is done locally in your browser. Your images are not uploaded to any server.
-        </AlertDescription>
-      </Alert>
+      <ToolHeader icon={ImageIcon} label="Image" title="Image Compressor" description="Compress images while maintaining visual quality. All processing is done locally in your browser." />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Upload Image</h2>
-            <FileUpload 
-              accept="image/*" 
-              maxSize={10} 
-              onFileSelect={handleFileSelect}
-            />
-            
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Upload Image</p>
+            <FileUpload accept="image/*" maxSize={10} onFileSelect={handleFileSelect} />
             {imageUrl && (
-              <div className="border rounded-lg overflow-hidden">
-                <img 
-                  src={imageUrl} 
-                  alt="Original" 
-                  className="w-full h-auto"
-                />
+              <div className="rounded-lg overflow-hidden border border-white/[0.08]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="Original" className="w-full h-auto" />
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Compression Settings</h2>
-              <Settings2 className="h-5 w-5 text-muted-foreground" />
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Settings</p>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#A0A0A0]">Quality</span>
+                <span className="text-white font-medium">{quality}%</span>
+              </div>
+              <input type="range" min={1} max={100} value={quality} onChange={e => setQuality(+e.target.value)} className="w-full accent-[#4D9FFF]" />
             </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label>Quality: {settings.quality}%</Label>
-                </div>
-                <Slider
-                  value={[settings.quality]}
-                  onValueChange={(value) => 
-                    setSettings(prev => ({ ...prev, quality: value[0] }))
-                  }
-                  min={1}
-                  max={100}
-                  step={1}
-                  className="w-full"
-                />
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#A0A0A0]">Max Width</span>
+                <span className="text-white font-medium">{maxWidth}px</span>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label>Max Width: {settings.maxWidth}px</Label>
-                </div>
-                <Slider
-                  value={[settings.maxWidth]}
-                  onValueChange={(value) => 
-                    setSettings(prev => ({ ...prev, maxWidth: value[0] }))
-                  }
-                  min={800}
-                  max={3840}
-                  step={160}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Preserve Image Quality</Label>
-                <Switch
-                  checked={settings.preserveQuality}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => ({ ...prev, preserveQuality: checked }))
-                  }
-                />
-              </div>
+              <input type="range" min={800} max={3840} step={160} value={maxWidth} onChange={e => setMaxWidth(+e.target.value)} className="w-full accent-[#4D9FFF]" />
             </div>
-
-            <Button 
-              onClick={handleCompress} 
-              disabled={!file || isProcessing}
-              className="w-full"
-            >
-              {isProcessing ? (
-                <>
-                  <Settings2 className="w-4 h-4 mr-2 animate-spin" />
-                  Compressing...
-                </>
-              ) : (
-                "Compress Image"
-              )}
-            </Button>
           </div>
+
+          <button onClick={handleCompress} disabled={!file || isProcessing}
+            className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed">
+            {isProcessing ? "Compressing…" : "Compress Image"}
+          </button>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Result</h2>
-            {isProcessing ? (
-              <div className="space-y-4 p-8 border rounded-lg">
-                <p className="text-center text-muted-foreground">Compressing image...</p>
-                <Progress value={33} />
-              </div>
-            ) : result ? (
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 min-h-[200px] flex flex-col justify-center">
+            {result ? (
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">Original</p>
-                      <p className="text-2xl font-bold">{formatBytes(result.originalSize)}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">Compressed</p>
-                      <p className="text-2xl font-bold">{formatBytes(result.compressedSize)}</p>
-                    </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Result</p>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-[10px] uppercase tracking-wider text-[#A0A0A0]">Original</p>
+                    <p className="text-xl font-bold text-white">{formatBytes(result.originalSize)}</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Size Reduction</p>
-                    <p className="text-2xl font-bold text-green-500">
-                      {calculateSavings(result.originalSize, result.compressedSize)}%
-                    </p>
+                  <ArrowRight className="h-4 w-4 text-[#A0A0A0]" />
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-[10px] uppercase tracking-wider text-[#A0A0A0]">Compressed</p>
+                    <p className="text-xl font-bold text-white">{formatBytes(result.compressedSize)}</p>
+                  </div>
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-[10px] uppercase tracking-wider text-[#A0A0A0]">Saved</p>
+                    <p className="text-xl font-bold text-green-400">{savings}%</p>
                   </div>
                 </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <img 
-                    src={result.url} 
-                    alt="Compressed" 
-                    className="w-full h-auto"
-                  />
+                <div className="rounded-lg overflow-hidden border border-white/[0.08]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={result.url} alt="Compressed" className="w-full h-auto" />
                 </div>
-
-                <Button 
-                  onClick={handleDownload}
-                  className="w-full"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Compressed Image
-                </Button>
+                <button onClick={handleDownload}
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-[#E5E5E5] transition-all hover:border-white/20 hover:text-white flex items-center justify-center gap-2">
+                  <Download className="h-4 w-4" />Download Compressed
+                </button>
               </div>
             ) : (
-              <div className="border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">
-                  Upload an image and click "Compress Image" to see the result.
-                </p>
+              <div className="text-center space-y-2">
+                <ImageIcon className="h-10 w-10 text-white/10 mx-auto" />
+                <p className="text-sm text-[#A0A0A0]">Upload an image and compress it to see the result</p>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">How to use</h2>
-        <ol className="list-decimal list-inside space-y-2 ml-4">
-          <li>Upload an image by dragging and dropping or clicking the upload area</li>
-          <li>Adjust compression quality (lower = smaller file size)</li>
-          <li>Set maximum width if you want to resize the image</li>
-          <li>Toggle quality preservation for better results</li>
-          <li>Click "Compress Image" to process</li>
-          <li>Download the compressed image</li>
-        </ol>
       </div>
 
       <RelatedTools currentTool="image-compressor" />

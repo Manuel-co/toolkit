@@ -12,7 +12,6 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  // Turbopack config (top-level in Next.js 16)
   turbopack: {
     resolveAlias: {
       fs: { browser: false },
@@ -26,7 +25,6 @@ const nextConfig = {
       type: 'asset/resource',
     });
 
-    // Fallbacks for @imgly/background-removal on client
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -34,6 +32,13 @@ const nextConfig = {
         path: false,
         crypto: false,
       };
+    }
+
+    // Ignore onnxruntime-web/webgpu — it's a dynamic runtime-only import
+    // Tell webpack to treat it as an empty module at build time
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'onnxruntime-web/webgpu': false,
     }
 
     return config;

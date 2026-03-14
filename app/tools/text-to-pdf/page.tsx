@@ -1,398 +1,318 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { RelatedTools } from "@/components/related-tools"
-import { Button } from "@/components/ui/button"
-import { FileIcon, Download, Info, Settings2, FileText } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ToolHeader } from "@/components/tool-header"
+import { FileIcon, Download, Loader2, Heading1, Heading2, Heading3, AlignLeft, List } from "lucide-react"
 import { toast } from "sonner"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
-import { Card, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { jsPDF } from "jspdf"
 
 interface PDFSettings {
   fontSize: number
-  fontName: 'helvetica' | 'courier' | 'times'
-  pageSize: 'a4' | 'letter' | 'legal'
-  orientation: 'portrait' | 'landscape'
+  fontName: "helvetica" | "courier" | "times"
+  pageSize: "a4" | "letter" | "legal"
+  orientation: "portrait" | "landscape"
   margins: number
   lineSpacing: number
   title: string
   includeTimestamp: boolean
 }
 
+type BlockType = "h1" | "h2" | "h3" | "p" | "ul"
+
+interface Block {
+  id: string
+  type: BlockType
+  content: string
+}
+
+const BLOCK_STYLES: Record<BlockType, { label: string }> = {
+  h1: { label: "Heading 1" },
+  h2: { label: "Heading 2" },
+  h3: { label: "Heading 3" },
+  p:  { label: "Paragraph" },
+  ul: { label: "Bullet List" },
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2)
+}
+
+const selectClass = "h-9 border-white/[0.08] bg-white/[0.03] text-[#E5E5E5] text-sm focus:ring-0 focus:border-[#4D9FFF]/40"
+const selectContentClass = "bg-[#0D0D0D] border-white/[0.08]"
+const selectItemClass = "text-[#E5E5E5] focus:bg-white/[0.06]"
+
 export default function TextToPDFPage() {
-  const [text, setText] = useState("")
+  const [blocks, setBlocks] = useState<Block[]>([
+    { id: uid(), type: "h1", content: "" },
+    { id: uid(), type: "p",  content: "" },
+  ])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [settings, setSettings] = useState<PDFSettings>({
     fontSize: 12,
-    fontName: 'helvetica',
-    pageSize: 'a4',
-    orientation: 'portrait',
+    fontName: "helvetica",
+    pageSize: "a4",
+    orientation: "portrait",
     margins: 20,
-    lineSpacing: 1.15,
-    title: '',
-    includeTimestamp: true
+    lineSpacing: 1.4,
+    title: "",
+    includeTimestamp: false,
   })
 
-  const fontOptions = [
-    { value: 'helvetica', label: 'Helvetica' },
-    { value: 'courier', label: 'Courier' },
-    { value: 'times', label: 'Times New Roman' }
-  ]
+  const inputRefs = useRef<Record<string, HTMLElement | null>>({})
 
-  const pageSizeOptions = [
-    { value: 'a4', label: 'A4' },
-    { value: 'letter', label: 'Letter' },
-    { value: 'legal', label: 'Legal' }
-  ]
+  const addBlock = useCallback((type: BlockType, afterId?: string) => {
+    const newBlock: Block = { id: uid(), type, content: "" }
+    setBlocks(prev => {
+      if (!afterId) return [...prev, newBlock]
+      const idx = prev.findIndex(b => b.id === afterId)
+      const next = [...prev]
+      next.splice(idx + 1, 0, newBlock)
+      return next
+    })
+    setTimeout(() => inputRefs.current[newBlock.id]?.focus(), 0)
+  }, [])
+
+  const updateBlock = useCallback((id: string, content: string) => {
+    setBlocks(prev => prev.map(b => b.id === id ? { ...b, content } : b))
+  }, [])
+
+  const changeBlockType = useCallback((id: string, type: BlockType) => {
+    setBlocks(prev => prev.map(b => b.id === id ? { ...b, type } : b))
+  }, [])
+
+  const removeBlock = useCallback((id: string) => {
+    setBlocks(prev => prev.length <= 1 ? prev : prev.filter(b => b.id !== id))
+  }, [])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, block: Block) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      addBlock("p", block.id)
+    } else if (e.key === "Backspace" && block.content === "") {
+      e.preventDefault()
+      removeBlock(block.id)
+    }
+  }, [addBlock, removeBlock])
 
   const handleGenerate = async () => {
-    if (!text.trim()) {
-      toast.error("Please enter some text first")
+    if (!blocks.some(b => b.content.trim())) {
+      toast.error("Please add some content first")
       return
     }
-
     setIsProcessing(true)
-    setProgress(0)
-
     try {
-      // Create new PDF document
-      const doc = new jsPDF({
-        orientation: settings.orientation,
-        unit: 'mm',
-        format: settings.pageSize
-      })
-
-      // Set font and size
-      doc.setFont(settings.fontName)
-      doc.setFontSize(settings.fontSize)
-
-      // Add title if provided
-      let yPosition = settings.margins
-      if (settings.title) {
-        doc.setFont(settings.fontName, 'bold')
-        doc.setFontSize(settings.fontSize + 4)
-        doc.text(settings.title, settings.margins, yPosition)
-        yPosition += 10
-        doc.setFont(settings.fontName, 'normal')
-        doc.setFontSize(settings.fontSize)
-      }
-
-      // Add timestamp if enabled
-      if (settings.includeTimestamp) {
-        const timestamp = new Date().toLocaleString()
-        doc.setFontSize(settings.fontSize - 2)
-        doc.text(timestamp, settings.margins, yPosition)
-        yPosition += 10
-        doc.setFontSize(settings.fontSize)
-      }
-
-      // Calculate page width for text wrapping
+      const doc = new jsPDF({ orientation: settings.orientation, unit: "mm", format: settings.pageSize })
       const pageWidth = doc.internal.pageSize.getWidth()
-      const maxWidth = pageWidth - (settings.margins * 2)
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const maxWidth = pageWidth - settings.margins * 2
+      let y = settings.margins
 
-      // Split text into lines with proper wrapping
-      const lines = doc.splitTextToSize(text, maxWidth)
+      const checkPage = (needed: number) => {
+        if (y + needed > pageHeight - settings.margins) { doc.addPage(); y = settings.margins }
+      }
 
-      // Add text with line spacing
-      lines.forEach((line: string, index: number) => {
-        if (yPosition > doc.internal.pageSize.getHeight() - settings.margins) {
-          doc.addPage()
-          yPosition = settings.margins
+      if (settings.title) {
+        doc.setFont(settings.fontName, "bold"); doc.setFontSize(settings.fontSize + 8)
+        checkPage(14); doc.text(settings.title, settings.margins, y); y += 14
+      }
+      if (settings.includeTimestamp) {
+        doc.setFont(settings.fontName, "normal"); doc.setFontSize(settings.fontSize - 2)
+        checkPage(6); doc.text(new Date().toLocaleString(), settings.margins, y); y += 8
+      }
+
+      for (const block of blocks) {
+        if (!block.content.trim()) { y += 4; continue }
+        switch (block.type) {
+          case "h1":
+            doc.setFont(settings.fontName, "bold"); doc.setFontSize(settings.fontSize + 10); checkPage(14)
+            doc.splitTextToSize(block.content, maxWidth).forEach((l: string) => { checkPage(12); doc.text(l, settings.margins, y); y += 12 })
+            y += 4; break
+          case "h2":
+            doc.setFont(settings.fontName, "bold"); doc.setFontSize(settings.fontSize + 6); checkPage(11)
+            doc.splitTextToSize(block.content, maxWidth).forEach((l: string) => { checkPage(10); doc.text(l, settings.margins, y); y += 10 })
+            y += 3; break
+          case "h3":
+            doc.setFont(settings.fontName, "bold"); doc.setFontSize(settings.fontSize + 3); checkPage(9)
+            doc.splitTextToSize(block.content, maxWidth).forEach((l: string) => { checkPage(8); doc.text(l, settings.margins, y); y += 8 })
+            y += 2; break
+          case "ul":
+            doc.setFont(settings.fontName, "normal"); doc.setFontSize(settings.fontSize)
+            block.content.split("\n").filter(Boolean).forEach(item => {
+              doc.splitTextToSize(`• ${item}`, maxWidth - 4).forEach((l: string, i: number) => {
+                checkPage(settings.fontSize * settings.lineSpacing * 0.35 + 1)
+                doc.text(l, settings.margins + (i > 0 ? 4 : 0), y)
+                y += settings.fontSize * settings.lineSpacing * 0.35
+              })
+            })
+            y += 3; break
+          default:
+            doc.setFont(settings.fontName, "normal"); doc.setFontSize(settings.fontSize)
+            doc.splitTextToSize(block.content, maxWidth).forEach((l: string) => {
+              checkPage(settings.fontSize * settings.lineSpacing * 0.35 + 1)
+              doc.text(l, settings.margins, y); y += settings.fontSize * settings.lineSpacing * 0.35
+            })
+            y += 3
         }
-        doc.text(line, settings.margins, yPosition)
-        yPosition += settings.fontSize * settings.lineSpacing * 0.35
-        setProgress(((index + 1) / lines.length) * 100)
-      })
+      }
 
-      // Save the PDF
-      const filename = settings.title ? 
-        `${settings.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.pdf` : 
-        'generated-document.pdf'
+      const filename = settings.title
+        ? `${settings.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.pdf`
+        : "document.pdf"
       doc.save(filename)
-
-      toast.success("PDF generated successfully!")
-    } catch (error) {
-      console.error("PDF generation error:", error)
-      toast.error("Failed to generate PDF")
+      toast.success("PDF downloaded!")
+    } catch (err) {
+      console.error(err); toast.error("Failed to generate PDF")
     } finally {
       setIsProcessing(false)
-      setProgress(0)
     }
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <FileIcon className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Text to PDF</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Convert text to beautifully formatted PDF documents with custom styling and layout options.
-        </p>
-      </div>
+    <div>
+      <ToolHeader icon={FileIcon} label="Utility" title="Text to PDF" description="Write rich documents with headings, paragraphs, and lists — then export as a polished PDF." />
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Local Processing</AlertTitle>
-        <AlertDescription>
-          All PDF generation is done locally in your browser. Your text is not uploaded to any server.
-        </AlertDescription>
-      </Alert>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Document Content</h2>
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Document Title (Optional)</Label>
-                <Input
-                  placeholder="Enter document title"
-                  value={settings.title}
-                  onChange={(e) => setSettings(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Content</Label>
-                <Textarea
-                  placeholder="Enter your text here..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  className="min-h-[200px]"
-                />
-              </div>
-            </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+        {/* Editor */}
+        <div className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-1 p-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+            {([
+              { type: "h1" as BlockType, icon: <Heading1 className="h-4 w-4" />, label: "H1" },
+              { type: "h2" as BlockType, icon: <Heading2 className="h-4 w-4" />, label: "H2" },
+              { type: "h3" as BlockType, icon: <Heading3 className="h-4 w-4" />, label: "H3" },
+              { type: "p"  as BlockType, icon: <AlignLeft className="h-4 w-4" />, label: "P" },
+              { type: "ul" as BlockType, icon: <List className="h-4 w-4" />, label: "List" },
+            ]).map(({ type, icon, label }) => (
+              <button
+                key={type}
+                onClick={() => addBlock(type)}
+                title={`Add ${BLOCK_STYLES[type].label}`}
+                className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-[#A0A0A0] transition-all hover:border-white/20 hover:text-white"
+              >
+                {icon}{label}
+              </button>
+            ))}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">PDF Settings</h2>
-              <Settings2 className="h-5 w-5 text-muted-foreground" />
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Font</Label>
-                  <Select
-                    value={settings.fontName}
-                    onValueChange={(value: PDFSettings['fontName']) => 
-                      setSettings(prev => ({ ...prev, fontName: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fontOptions.map(font => (
-                        <SelectItem key={font.value} value={font.value}>
-                          {font.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Font Size</Label>
-                  <Select
-                    value={settings.fontSize.toString()}
-                    onValueChange={(value) => 
-                      setSettings(prev => ({ ...prev, fontSize: parseInt(value) }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[10, 11, 12, 14, 16, 18, 20].map(size => (
-                        <SelectItem key={size} value={size.toString()}>
-                          {size}pt
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Page Size</Label>
-                  <Select
-                    value={settings.pageSize}
-                    onValueChange={(value: PDFSettings['pageSize']) => 
-                      setSettings(prev => ({ ...prev, pageSize: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pageSizeOptions.map(size => (
-                        <SelectItem key={size.value} value={size.value}>
-                          {size.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Orientation</Label>
-                  <Select
-                    value={settings.orientation}
-                    onValueChange={(value: PDFSettings['orientation']) => 
-                      setSettings(prev => ({ ...prev, orientation: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="portrait">Portrait</SelectItem>
-                      <SelectItem value="landscape">Landscape</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Line Spacing</Label>
-                <Select
-                  value={settings.lineSpacing.toString()}
-                  onValueChange={(value) => 
-                    setSettings(prev => ({ ...prev, lineSpacing: parseFloat(value) }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Single</SelectItem>
-                    <SelectItem value="1.15">Comfortable</SelectItem>
-                    <SelectItem value="1.5">1.5 Lines</SelectItem>
-                    <SelectItem value="2">Double</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label>Include Timestamp</Label>
-                <Switch
-                  checked={settings.includeTimestamp}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => ({ ...prev, includeTimestamp: checked }))
-                  }
-                />
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleGenerate} 
-              disabled={!text.trim() || isProcessing}
-              className="w-full"
-            >
-              {isProcessing ? (
-                <>
-                  <Settings2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating PDF...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Generate PDF
-                </>
-              )}
-            </Button>
+          {/* Blocks */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] divide-y divide-white/[0.05] min-h-[400px]">
+            {blocks.map((block) => (
+              <BlockRow
+                key={block.id}
+                block={block}
+                inputRefs={inputRefs}
+                onKeyDown={handleKeyDown}
+                onChange={updateBlock}
+                onTypeChange={changeBlockType}
+              />
+            ))}
           </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={isProcessing}
+            className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isProcessing
+              ? <><Loader2 className="h-4 w-4 animate-spin" />Generating…</>
+              : <><Download className="h-4 w-4" />Download PDF</>
+            }
+          </button>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Preview</h2>
-            {isProcessing ? (
-              <div className="space-y-4 p-8 border rounded-lg">
-                <p className="text-center text-muted-foreground">Generating PDF...</p>
-                <Progress value={progress} />
-              </div>
-            ) : text ? (
-              <div className="space-y-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Document Settings</h3>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>Font: {fontOptions.find(f => f.value === settings.fontName)?.label}</p>
-                        <p>Size: {settings.fontSize}pt</p>
-                        <p>Page: {pageSizeOptions.find(p => p.value === settings.pageSize)?.label}</p>
-                        <p>Orientation: {settings.orientation}</p>
-                        <p>Line Spacing: {settings.lineSpacing}x</p>
-                        {settings.title && <p>Title: {settings.title}</p>}
-                        <p>Timestamp: {settings.includeTimestamp ? 'Included' : 'Not included'}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        {/* Settings */}
+        <div className="space-y-4">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">PDF Settings</p>
 
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold">Content Preview</h3>
-                      <div 
-                        className="p-4 border rounded bg-muted/50 max-h-[300px] overflow-y-auto"
-                        style={{
-                          fontFamily: settings.fontName === 'helvetica' ? 'Arial' : 
-                                    settings.fontName === 'times' ? 'Times New Roman' : 
-                                    'Courier New',
-                          fontSize: `${settings.fontSize}px`,
-                          lineHeight: settings.lineSpacing
-                        }}
-                      >
-                        {settings.title && (
-                          <div className="font-bold text-lg mb-2">{settings.title}</div>
-                        )}
-                        {settings.includeTimestamp && (
-                          <div className="text-sm text-muted-foreground mb-2">
-                            {new Date().toLocaleString()}
-                          </div>
-                        )}
-                        <div style={{ whiteSpace: 'pre-wrap' }}>{text}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <div className="border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">
-                  Enter text and configure settings to see a preview.
-                </p>
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Document Title</label>
+              <input
+                placeholder="Optional title"
+                value={settings.title}
+                onChange={e => setSettings(p => ({ ...p, title: e.target.value }))}
+                className="h-9 w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white placeholder:text-[#A0A0A0]/50 outline-none focus:border-[#4D9FFF]/40 transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Font</label>
+              <Select value={settings.fontName} onValueChange={(v: PDFSettings["fontName"]) => setSettings(p => ({ ...p, fontName: v }))}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="helvetica" className={selectItemClass}>Helvetica</SelectItem>
+                  <SelectItem value="times" className={selectItemClass}>Times New Roman</SelectItem>
+                  <SelectItem value="courier" className={selectItemClass}>Courier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Font Size</label>
+              <Select value={settings.fontSize.toString()} onValueChange={v => setSettings(p => ({ ...p, fontSize: parseInt(v) }))}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  {[10, 11, 12, 14, 16].map(s => (
+                    <SelectItem key={s} value={s.toString()} className={selectItemClass}>{s}pt</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Page Size</label>
+              <Select value={settings.pageSize} onValueChange={(v: PDFSettings["pageSize"]) => setSettings(p => ({ ...p, pageSize: v }))}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="a4" className={selectItemClass}>A4</SelectItem>
+                  <SelectItem value="letter" className={selectItemClass}>Letter</SelectItem>
+                  <SelectItem value="legal" className={selectItemClass}>Legal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Orientation</label>
+              <Select value={settings.orientation} onValueChange={(v: PDFSettings["orientation"]) => setSettings(p => ({ ...p, orientation: v }))}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="portrait" className={selectItemClass}>Portrait</SelectItem>
+                  <SelectItem value="landscape" className={selectItemClass}>Landscape</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Line Spacing</label>
+              <Select value={settings.lineSpacing.toString()} onValueChange={v => setSettings(p => ({ ...p, lineSpacing: parseFloat(v) }))}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="1" className={selectItemClass}>Single</SelectItem>
+                  <SelectItem value="1.4" className={selectItemClass}>Comfortable</SelectItem>
+                  <SelectItem value="1.5" className={selectItemClass}>1.5 Lines</SelectItem>
+                  <SelectItem value="2" className={selectItemClass}>Double</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Include Timestamp</label>
+              <button
+                onClick={() => setSettings(p => ({ ...p, includeTimestamp: !p.includeTimestamp }))}
+                className={`relative h-5 w-9 rounded-full transition-colors ${settings.includeTimestamp ? "bg-[#4D9FFF]" : "bg-white/10"}`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${settings.includeTimestamp ? "translate-x-4" : "translate-x-0.5"}`} />
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">How to use</h2>
-            <ol className="list-decimal list-inside space-y-2">
-              <li>Enter your text in the content area</li>
-              <li>Add an optional document title</li>
-              <li>Choose your preferred font and size</li>
-              <li>Select page size and orientation</li>
-              <li>Adjust line spacing and other settings</li>
-              <li>Click "Generate PDF" to create and download your document</li>
-            </ol>
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Tips</p>
+            <p className="text-xs text-[#A0A0A0]/70">Press <kbd className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px]">Enter</kbd> to add a paragraph.</p>
+            <p className="text-xs text-[#A0A0A0]/70">Press <kbd className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px]">Backspace</kbd> on empty block to remove.</p>
+            <p className="text-xs text-[#A0A0A0]/70">Use toolbar to insert blocks anywhere.</p>
           </div>
         </div>
       </div>
@@ -400,4 +320,73 @@ export default function TextToPDFPage() {
       <RelatedTools currentTool="text-to-pdf" />
     </div>
   )
-} 
+}
+
+// ── Block row ────────────────────────────────────────────────────────────────
+
+interface BlockRowProps {
+  block: Block
+  inputRefs: React.MutableRefObject<Record<string, HTMLElement | null>>
+  onKeyDown: (e: React.KeyboardEvent, block: Block) => void
+  onChange: (id: string, content: string) => void
+  onTypeChange: (id: string, type: BlockType) => void
+}
+
+const TYPE_ICONS: Record<BlockType, React.ReactNode> = {
+  h1: <Heading1 className="h-3.5 w-3.5" />,
+  h2: <Heading2 className="h-3.5 w-3.5" />,
+  h3: <Heading3 className="h-3.5 w-3.5" />,
+  p:  <AlignLeft className="h-3.5 w-3.5" />,
+  ul: <List className="h-3.5 w-3.5" />,
+}
+
+function BlockRow({ block, inputRefs, onKeyDown, onChange, onTypeChange }: BlockRowProps) {
+  const isMultiline = block.type === "ul"
+
+  const inputClass = [
+    "w-full bg-transparent focus:outline-none resize-none placeholder:text-white/20 py-2.5 px-3 text-white",
+    block.type === "h1" ? "text-3xl font-bold" :
+    block.type === "h2" ? "text-2xl font-semibold" :
+    block.type === "h3" ? "text-xl font-semibold" :
+    "text-base",
+  ].join(" ")
+
+  return (
+    <div className="flex items-start gap-1 px-2 group hover:bg-white/[0.02] transition-colors">
+      <div className="pt-2.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <Select value={block.type} onValueChange={(v: BlockType) => onTypeChange(block.id, v)}>
+          <SelectTrigger className="h-6 w-6 p-0 border-0 bg-transparent text-[#A0A0A0] hover:text-white [&>svg]:hidden">
+            {TYPE_ICONS[block.type]}
+          </SelectTrigger>
+          <SelectContent className="bg-[#0D0D0D] border-white/[0.08]">
+            {(Object.keys(BLOCK_STYLES) as BlockType[]).map(t => (
+              <SelectItem key={t} value={t} className="text-[#E5E5E5] focus:bg-white/[0.06]">
+                <span className="flex items-center gap-2">{TYPE_ICONS[t]}{BLOCK_STYLES[t].label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isMultiline ? (
+        <textarea
+          ref={el => { inputRefs.current[block.id] = el }}
+          className={inputClass + " min-h-[80px]"}
+          placeholder="- List item (one per line)"
+          value={block.content}
+          onChange={e => onChange(block.id, e.target.value)}
+          rows={3}
+        />
+      ) : (
+        <input
+          ref={el => { inputRefs.current[block.id] = el }}
+          className={inputClass}
+          placeholder={BLOCK_STYLES[block.type].label}
+          value={block.content}
+          onChange={e => onChange(block.id, e.target.value)}
+          onKeyDown={e => onKeyDown(e, block)}
+        />
+      )}
+    </div>
+  )
+}

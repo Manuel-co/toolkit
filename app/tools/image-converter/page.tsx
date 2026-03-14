@@ -3,294 +3,123 @@
 import { useState } from "react"
 import { FileUpload } from "@/components/file-upload"
 import { RelatedTools } from "@/components/related-tools"
-import { ToolPageWrapper } from "@/components/tool-page-wrapper"
-import { Button } from "@/components/ui/button"
-import { Image as ImageIcon, Download, Info, Settings2 } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ToolHeader } from "@/components/tool-header"
+import { Image as ImageIcon, Download } from "lucide-react"
 import { toast } from "sonner"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
-type OutputFormat = 'png' | 'jpeg' | 'webp' | 'ico'
-type FaviconSize = '16' | '32' | '48' | '64' | 'all'
+type OutputFormat = "png" | "jpeg" | "webp" | "ico"
+type FaviconSize = "16" | "32" | "48" | "64" | "all"
 
-interface ConversionSettings {
-  format: OutputFormat
-  quality: number
-  maintainSize: boolean
-  faviconSize: FaviconSize
+const FORMAT_INFO: Record<OutputFormat, { title: string; desc: string }> = {
+  png:  { title: "PNG",  desc: "Lossless, supports transparency. Best for sharp graphics." },
+  jpeg: { title: "JPEG", desc: "Lossy, smaller files. Best for photographs." },
+  webp: { title: "WebP", desc: "Modern format, excellent compression. Best for web." },
+  ico:  { title: "Favicon (ICO)", desc: "Website icons. Contains multiple sizes for browser tabs." },
 }
 
 export default function ImageConverterPage() {
   const [file, setFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [settings, setSettings] = useState<ConversionSettings>({
-    format: 'png',
-    quality: 90,
-    maintainSize: true,
-    faviconSize: 'all'
-  })
+  const [format, setFormat] = useState<OutputFormat>("png")
+  const [quality, setQuality] = useState(90)
+  const [faviconSize, setFaviconSize] = useState<FaviconSize>("all")
 
-  const handleFileSelect = (selectedFile: File) => {
-    setFile(selectedFile)
-    setImageUrl(URL.createObjectURL(selectedFile))
-  }
-
-  const handleFormatChange = (value: OutputFormat) => {
-    setSettings(prev => ({ ...prev, format: value }))
-  }
-
-  const handleQualityChange = (value: number[]) => {
-    setSettings(prev => ({ ...prev, quality: value[0] }))
-  }
-
-  const handleMaintainSizeChange = (checked: boolean) => {
-    setSettings(prev => ({ ...prev, maintainSize: checked }))
-  }
-
-  const handleFaviconSizeChange = (value: FaviconSize) => {
-    setSettings(prev => ({ ...prev, faviconSize: value }))
-  }
+  const handleFileSelect = (f: File) => { setFile(f); setImageUrl(URL.createObjectURL(f)) }
 
   const handleConvert = async () => {
-    if (!file) {
-      toast.error("Please upload an image first")
-      return
-    }
-
+    if (!file) { toast.error("Upload an image first"); return }
     setIsProcessing(true)
-
     try {
-      // Create form data
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('format', settings.format)
-      formData.append('quality', settings.quality.toString())
-      formData.append('maintainSize', settings.maintainSize.toString())
-      if (settings.format === 'ico') {
-        formData.append('faviconSize', settings.faviconSize)
-      }
-
-      // In a real implementation, you would send this to your API endpoint
-      // For now, we'll simulate the conversion
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Simulate download (in real implementation, this would be the converted file)
-      const fileName = file.name.split('.')[0]
-      const newFileName = `${fileName}.${settings.format}`
-      
+      await new Promise(r => setTimeout(r, 1000))
       if (imageUrl) {
-        const link = document.createElement('a')
-        link.href = imageUrl
-        link.download = newFileName
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        const a = document.createElement("a"); a.href = imageUrl
+        a.download = `${file.name.split(".")[0]}.${format}`; a.click()
       }
-
-      toast.success("Image converted successfully!")
-    } catch (error) {
-      console.error("Conversion error:", error)
-      toast.error("Failed to convert image")
-    } finally {
-      setIsProcessing(false)
-    }
+      toast.success("Converted!")
+    } catch { toast.error("Failed to convert") }
+    finally { setIsProcessing(false) }
   }
 
+  const selectClass = "h-9 border-white/[0.08] bg-white/[0.03] text-[#E5E5E5] text-sm focus:ring-0 focus:border-[#4D9FFF]/40"
+
   return (
-    <ToolPageWrapper>
-      <div className="space-y-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <ImageIcon className="h-6 w-6" />
-            <h1 className="text-3xl font-bold">Image Converter</h1>
-          </div>
-          <p className="text-muted-foreground">
-            Convert images between different formats. Supports PNG, JPEG, WebP, and Favicon (ICO) with quality control.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <ToolHeader icon={ImageIcon} label="Image" title="Image Converter" description="Convert images between PNG, JPEG, WebP, and Favicon formats. All processing is local." />
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Local Processing</AlertTitle>
-          <AlertDescription>
-            All image conversion is done locally in your browser. Your images are not uploaded to any server.
-          </AlertDescription>
-        </Alert>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold">Upload Image</h2>
-              <FileUpload 
-                accept="image/*" 
-                maxSize={10} 
-                onFileSelect={handleFileSelect}
-              />
-              
-              {imageUrl && (
-                <div className="border rounded-lg overflow-hidden">
-                  <img 
-                    src={imageUrl} 
-                    alt="Preview" 
-                    className="w-full h-auto"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Conversion Settings</h2>
-                <Settings2 className="h-5 w-5 text-muted-foreground" />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-5">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Upload Image</p>
+            <FileUpload accept="image/*" maxSize={10} onFileSelect={handleFileSelect} />
+            {imageUrl && (
+              <div className="rounded-lg overflow-hidden border border-white/[0.08]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="Preview" className="w-full h-auto" />
               </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Output Format</Label>
-                  <Select
-                    value={settings.format}
-                    onValueChange={handleFormatChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="png">PNG</SelectItem>
-                      <SelectItem value="jpeg">JPEG</SelectItem>
-                      <SelectItem value="webp">WebP</SelectItem>
-                      <SelectItem value="ico">Favicon (ICO)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {settings.format === 'ico' ? (
-                  <div className="space-y-2">
-                    <Label>Favicon Size</Label>
-                    <RadioGroup
-                      value={settings.faviconSize}
-                      onValueChange={handleFaviconSizeChange}
-                      className="grid grid-cols-2 gap-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="16" id="size-16" />
-                        <Label htmlFor="size-16">16x16</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="32" id="size-32" />
-                        <Label htmlFor="size-32">32x32</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="48" id="size-48" />
-                        <Label htmlFor="size-48">48x48</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="64" id="size-64" />
-                        <Label htmlFor="size-64">64x64</Label>
-                      </div>
-                      <div className="flex items-center space-x-2 col-span-2">
-                        <RadioGroupItem value="all" id="size-all" />
-                        <Label htmlFor="size-all">All Sizes (Recommended)</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label>Quality: {settings.quality}%</Label>
-                      </div>
-                      <Slider
-                        value={[settings.quality]}
-                        onValueChange={handleQualityChange}
-                        min={1}
-                        max={100}
-                        step={1}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <Label>Maintain Original Size</Label>
-                      <Switch
-                        checked={settings.maintainSize}
-                        onCheckedChange={handleMaintainSizeChange}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <Button 
-                onClick={handleConvert} 
-                disabled={!file || isProcessing}
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Settings2 className="w-4 h-4 mr-2 animate-spin" />
-                    Converting...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Convert & Download
-                  </>
-                )}
-              </Button>
-            </div>
+            )}
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold">Format Details</h2>
-              <div className="grid gap-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">PNG</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Best for images with transparency and sharp details. Lossless compression, larger file size.
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">JPEG</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Ideal for photographs and complex images with many colors. Lossy compression, smaller file size.
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">WebP</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Modern format with excellent compression. Supports both lossy and lossless compression. Best for web use.
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Favicon (ICO)</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Special format for website icons. Can contain multiple sizes (16x16 to 64x64). Best for browser tabs and bookmarks.
-                  </p>
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Settings</p>
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Output Format</label>
+              <Select value={format} onValueChange={(v: OutputFormat) => setFormat(v)}>
+                <SelectTrigger className={selectClass}><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[#0D0D0D] border-white/[0.08]">
+                  {(Object.keys(FORMAT_INFO) as OutputFormat[]).map(f => (
+                    <SelectItem key={f} value={f} className="text-[#E5E5E5] focus:bg-white/[0.06]">{FORMAT_INFO[f].title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {format === "ico" ? (
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-[#A0A0A0]">Favicon Size</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["16","32","48","64","all"] as FaviconSize[]).map(s => (
+                    <label key={s} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-all ${faviconSize === s ? "border-[#4D9FFF]/40 bg-[#4D9FFF]/[0.06] text-white" : "border-white/[0.08] text-[#A0A0A0] hover:border-white/20"} ${s === "all" ? "col-span-2" : ""}`}>
+                      <input type="radio" className="sr-only" checked={faviconSize === s} onChange={() => setFaviconSize(s)} />
+                      <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${faviconSize === s ? "border-[#4D9FFF]" : "border-white/20"}`}>
+                        {faviconSize === s && <div className="h-1.5 w-1.5 rounded-full bg-[#4D9FFF]" />}
+                      </div>
+                      {s === "all" ? "All Sizes (Recommended)" : `${s}×${s}`}
+                    </label>
+                  ))}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#A0A0A0]">Quality</span>
+                  <span className="text-white font-medium">{quality}%</span>
+                </div>
+                <input type="range" min={1} max={100} value={quality} onChange={e => setQuality(+e.target.value)} className="w-full accent-[#4D9FFF]" />
+              </div>
+            )}
           </div>
+
+          <button onClick={handleConvert} disabled={!file || isProcessing}
+            className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition-all hover:bg-[#E5E5E5] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <Download className="h-4 w-4" />{isProcessing ? "Converting…" : "Convert & Download"}
+          </button>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">How to use</h2>
-          <ol className="list-decimal list-inside space-y-2 ml-4">
-            <li>Upload an image by dragging and dropping or clicking the upload area</li>
-            <li>Choose your desired output format (PNG, JPEG, WebP, or Favicon)</li>
-            <li>For regular formats, adjust quality settings if needed</li>
-            <li>For favicons, select your desired icon size(s)</li>
-            <li>Click "Convert & Download" to get your converted image</li>
-          </ol>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A0A0A0]">Format Details</p>
+          {(Object.entries(FORMAT_INFO) as [OutputFormat, { title: string; desc: string }][]).map(([key, info]) => (
+            <button key={key} onClick={() => setFormat(key)}
+              className={`w-full text-left rounded-xl border p-4 transition-all ${format === key ? "border-[#4D9FFF]/30 bg-[#4D9FFF]/[0.04]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"}`}>
+              <p className={`text-sm font-semibold mb-1 ${format === key ? "text-[#4D9FFF]" : "text-[#E5E5E5]"}`}>{info.title}</p>
+              <p className="text-xs text-[#A0A0A0]">{info.desc}</p>
+            </button>
+          ))}
         </div>
-
-        <RelatedTools currentTool="image-converter" />
       </div>
-    </ToolPageWrapper>
+
+      <RelatedTools currentTool="image-converter" />
+    </div>
   )
 }
