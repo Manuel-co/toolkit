@@ -12,18 +12,21 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
+  // Turbopack config (top-level in Next.js 16)
+  turbopack: {
+    resolveAlias: {
+      fs: { browser: false },
+      path: { browser: false },
+      crypto: { browser: false },
+    },
   },
   webpack: (config, { isServer }) => {
     config.module.rules.push({
       test: /\.ico$/,
       type: 'asset/resource',
     });
-    
-    // Configuration for @imgly/background-removal
+
+    // Fallbacks for @imgly/background-removal on client
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -32,7 +35,7 @@ const nextConfig = {
         crypto: false,
       };
     }
-    
+
     return config;
   },
 }
